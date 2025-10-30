@@ -22,6 +22,9 @@ load_dotenv(env_path)
 app = Flask(__name__)
 CORS(app)  # Enable CORS for all routes
 
+# Global lock for thread-safe operations on the processing state
+processing_lock = threading.RLock()
+
 # File path for processing states
 PROCESSING_STATES_FILE = os.path.join(project_root, "document_processing_log.json")
 
@@ -57,44 +60,46 @@ def save_processing_states(states):
 
 def cleanup_old_processing_states():
     """Clean up completed processing states after a short delay"""
-    try:
-        states = load_processing_states()
-        current_time = time.time()
-        updated_states = {}
-        cleaned_count = 0
-        
-        for doc_id, state in states.items():
-            # Keep processing states and recently completed states (less than 5 seconds old)
-            if state.get("is_processing") or (current_time - state.get("completion_time", current_time)) < 5:
-                updated_states[doc_id] = state
-            else:
-                # Remove old completed states
-                cleaned_count += 1
-                print(f"DEBUG: Cleaning up old processing state for {state.get('file_name', 'unknown')} (doc_id: {doc_id})")
-        
-        # Save cleaned up states if there were changes
-        if len(updated_states) != len(states):
-            save_processing_states(updated_states)
-            print(f"DEBUG: Cleaned up {cleaned_count} old processing states")
+    with processing_lock:
+        try:
+            states = load_processing_states()
+            current_time = time.time()
+            updated_states = {}
+            cleaned_count = 0
             
-        return updated_states
-    except Exception as e:
-        error_traceback = traceback.format_exc()
-        print(f"ERROR in cleanup_old_processing_states: {str(e)}")
-        print(f"Traceback: {error_traceback}")
-        return load_processing_states()
+            for doc_id, state in states.items():
+                # Keep processing states and recently completed states (less than 5 seconds old)
+                if state.get("is_processing") or (current_time - state.get("completion_time", current_time)) < 5:
+                    updated_states[doc_id] = state
+                else:
+                    # Remove old completed states
+                    cleaned_count += 1
+                    print(f"DEBUG: Cleaning up old processing state for {state.get('file_name', 'unknown')} (doc_id: {doc_id})")
+            
+            # Save cleaned up states if there were changes
+            if len(updated_states) != len(states):
+                save_processing_states(updated_states)
+                print(f"DEBUG: Cleaned up {cleaned_count} old processing states")
+                
+            return updated_states
+        except Exception as e:
+            error_traceback = traceback.format_exc()
+            print(f"ERROR in cleanup_old_processing_states: {str(e)}")
+            print(f"Traceback: {error_traceback}")
+            return load_processing_states()
 
 def clear_processing_states_log():
     """Clear all processing states from the JSON file"""
-    try:
-        if os.path.exists(PROCESSING_STATES_FILE):
-            with open(PROCESSING_STATES_FILE, 'w') as f:
-                json.dump({}, f) # Write an empty JSON object
-            print(f"DEBUG: Cleared processing states log: {PROCESSING_STATES_FILE}")
-        else:
-            print(f"DEBUG: Processing states log not found, no need to clear: {PROCESSING_STATES_FILE}")
-    except Exception as e:
-        print(f"Error clearing processing states log: {e}")
+    with processing_lock:
+        try:
+            if os.path.exists(PROCESSING_STATES_FILE):
+                with open(PROCESSING_STATES_FILE, 'w') as f:
+                    json.dump({}, f) # Write an empty JSON object
+                print(f"DEBUG: Cleared processing states log: {PROCESSING_STATES_FILE}")
+            else:
+                print(f"DEBUG: Processing states log not found, no need to clear: {PROCESSING_STATES_FILE}")
+        except Exception as e:
+            print(f"Error clearing processing states log: {e}")
 
 # Clear processing states on application startup
 # clear_processing_states_log()
@@ -187,22 +192,23 @@ def ocr_pdf_pages(pdf_path: str, company: str, source_name: str, doc_id: str):
     
     for i in range(total_pages):
         # Update processing state with current page info
-        global processing_states
-        processing_states = load_processing_states()
-        if doc_id in processing_states:
-            processing_states[doc_id].update({
-                "current_page": i + 1,
-                "total_pages": total_pages,
-                "message": f"Processing page {i+1}/{total_pages}"
-            })
-            # Update steps info
-            if "steps" in processing_states[doc_id] and "ocr" in processing_states[doc_id]["steps"]:
-                processing_states[doc_id]["steps"]["ocr"].update({
+        with processing_lock:
+            global processing_states
+            processing_states = load_processing_states()
+            if doc_id in processing_states:
+                processing_states[doc_id].update({
                     "current_page": i + 1,
                     "total_pages": total_pages,
                     "message": f"Processing page {i+1}/{total_pages}"
                 })
-            save_processing_states(processing_states)
+                # Update steps info
+                if "steps" in processing_states[doc_id] and "ocr" in processing_states[doc_id]["steps"]:
+                    processing_states[doc_id]["steps"]["ocr"].update({
+                        "current_page": i + 1,
+                        "total_pages": total_pages,
+                        "message": f"Processing page {i+1}/{total_pages}"
+                    })
+                save_processing_states(processing_states)
         
         # Notify real-time listeners of page start
         notify_processing_update({
@@ -228,14 +234,16 @@ def ocr_pdf_pages(pdf_path: str, company: str, source_name: str, doc_id: str):
         last_error = None
         
         # Send progress update that we're starting this page
-        # Load current states first
-        processing_states = load_processing_states()
-        
+        # Load current states first (inside a lock)
+        with processing_lock:
+            processing_states = load_processing_states()
+            current_file_name = processing_states.get(doc_id, {}).get("current_file") if 'doc_id' in locals() else source_name
+
         yield json.dumps({
             "status": "page_started",
             "page": i + 1,
             "total_pages": total_pages,
-            "currentFile": processing_states.get(doc_id, {}).get("current_file") if 'doc_id' in locals() else source_name,
+            "currentFile": current_file_name,
             "message": f"Starting OCR for page {i+1}/{total_pages}",
             "ocrProgress": {
                 "current_page": i + 1,
@@ -308,19 +316,20 @@ def ocr_pdf_pages(pdf_path: str, company: str, source_name: str, doc_id: str):
                     page_success = True
                     
                     # Update processing state with completed page info
-                    processing_states = load_processing_states()
-                    if doc_id in processing_states:
-                        processing_states[doc_id].update({
-                            "completed_pages": success_pages,
-                            "message": f"Completed page {i+1}/{total_pages}"
-                        })
-                        # Update steps info
-                        if "steps" in processing_states[doc_id] and "ocr" in processing_states[doc_id]["steps"]:
-                            processing_states[doc_id]["steps"]["ocr"].update({
+                    with processing_lock:
+                        processing_states = load_processing_states()
+                        if doc_id in processing_states:
+                            processing_states[doc_id].update({
                                 "completed_pages": success_pages,
                                 "message": f"Completed page {i+1}/{total_pages}"
                             })
-                        save_processing_states(processing_states)
+                            # Update steps info
+                            if "steps" in processing_states[doc_id] and "ocr" in processing_states[doc_id]["steps"]:
+                                processing_states[doc_id]["steps"]["ocr"].update({
+                                    "completed_pages": success_pages,
+                                    "message": f"Completed page {i+1}/{total_pages}"
+                                })
+                            save_processing_states(processing_states)
                     
                     # Notify real-time listeners of page completion
                     notify_processing_update({
@@ -983,10 +992,7 @@ def process_documents():
                 'success': False,
                 'error': 'Missing company_id or files'
             }), 400
-        
-        # Load current states
         global processing_states
-        processing_states = load_processing_states()
         
         def generate():
             try:
@@ -1028,31 +1034,33 @@ def process_documents():
                     document_ids.append((doc_id, file_name))
                     print(f"DEBUG: Generated doc_id {doc_id} for {file_name}")
                     
-                    # Initialize processing state for this document
-                    processing_states[doc_id] = {
-                        "doc_id": doc_id,
-                        "company_id": company_id,
-                        "file_name": file_name,
-                        "is_processing": True,
-                        "current_file": file_name,
-                        "file_index": file_idx + 1,
-                        "total_files": len(files),
-                        "progress": 0,
-                        "message": f"Initializing processing for {file_name}",
-                        "steps": {},
-                        "start_time": time.time(),
-                        "logs": []
-                    }
-                    
-                    # Add log entry
-                    processing_states[doc_id]["logs"].append({
-                        "timestamp": time.time(),
-                        "message": f"Started processing document {file_name}",
-                        "status": "started"
-                    })
-                    
-                    # Save updated states
-                    save_processing_states(processing_states)
+                    with processing_lock:
+                        processing_states = load_processing_states()
+                        # Initialize processing state for this document
+                        processing_states[doc_id] = {
+                            "doc_id": doc_id,
+                            "company_id": company_id,
+                            "file_name": file_name,
+                            "is_processing": True,
+                            "current_file": file_name,
+                            "file_index": file_idx + 1,
+                            "total_files": len(files),
+                            "progress": 0,
+                            "message": f"Initializing processing for {file_name}",
+                            "steps": {},
+                            "start_time": time.time(),
+                            "logs": []
+                        }
+                        
+                        # Add log entry
+                        processing_states[doc_id]["logs"].append({
+                            "timestamp": time.time(),
+                            "message": f"Started processing document {file_name}",
+                            "status": "started"
+                        })
+                        
+                        # Save updated states
+                        save_processing_states(processing_states)
                     
                     yield json.dumps({
                         "status": "file_started",
@@ -1064,52 +1072,28 @@ def process_documents():
                         "progress": int(((file_idx) / len(files)) * 100)
                     }) + "\n"
                     
-                    # Construct file path (adjust based on your actual file storage)
-                    import urllib.parse
-                    # Use absolute path from project root
-                    project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-                    pdf_path = os.path.join(project_root, "knowledge", company_id, file_name)
-                    
-                    # URL encode the company_id and file_name to handle spaces and special characters
-                    encoded_company_id = urllib.parse.quote(company_id)
-                    encoded_file_name = urllib.parse.quote(file_name)
-                    encoded_pdf_path = os.path.join(project_root, "knowledge", encoded_company_id, encoded_file_name)
-                    
-                    # Try encoded path first, then fallback to unencoded
-                    if os.path.exists(encoded_pdf_path):
-                        pdf_path = encoded_pdf_path
-                    elif not os.path.exists(pdf_path):
-                        # Try the simpler path construction as last resort
-                        pdf_path = f"knowledge/{company_id}/{file_name}"
-                    
-                    if not os.path.exists(pdf_path):
-                        yield json.dumps({
-                            "status": "file_error",
-                            "file_name": file_name,
-                            "error": f"File not found: {pdf_path}"
-                        }) + "\n"
-                        continue
-                    
                     # Step 1: OCR Processing
-                    processing_states[doc_id]["steps"]["ocr"] = {
-                        "current_step": "ocr",
-                        "message": f"Starting OCR for {file_name}",
-                        "start_time": time.time()
-                    }
-                    processing_states[doc_id].update({
-                        "message": f"Starting OCR for {file_name}"
-                    })
-                    
-                    # Add log entry
-                    processing_states[doc_id]["logs"].append({
-                        "timestamp": time.time(),
-                        "message": f"Starting OCR for {file_name}",
-                        "status": "step_started",
-                        "step": "ocr"
-                    })
-                    
-                    # Save updated states
-                    save_processing_states(processing_states)
+                    with processing_lock:
+                        processing_states = load_processing_states()
+                        processing_states[doc_id]["steps"]["ocr"] = {
+                            "current_step": "ocr",
+                            "message": f"Starting OCR for {file_name}",
+                            "start_time": time.time()
+                        }
+                        processing_states[doc_id].update({
+                            "message": f"Starting OCR for {file_name}"
+                        })
+                        
+                        # Add log entry
+                        processing_states[doc_id]["logs"].append({
+                            "timestamp": time.time(),
+                            "message": f"Starting OCR for {file_name}",
+                            "status": "step_started",
+                            "step": "ocr"
+                        })
+                        
+                        # Save updated states
+                        save_processing_states(processing_states)
                     
                     yield json.dumps({
                         "status": "step_started",
@@ -1135,12 +1119,14 @@ def process_documents():
                     
                     if not ocr_results:
                         # Update processing state with error
-                        processing_states[doc_id].update({
-                            "is_processing": False,
-                            "isError": True,
-                            "errorMessage": "OCR processing failed"
-                        })
-                        save_processing_states(processing_states)
+                        with processing_lock:
+                            processing_states = load_processing_states()
+                            processing_states[doc_id].update({
+                                "is_processing": False,
+                                "isError": True,
+                                "errorMessage": "OCR processing failed"
+                            })
+                            save_processing_states(processing_states)
                         
                         yield json.dumps({
                             "status": "step_failed",
@@ -1172,25 +1158,27 @@ def process_documents():
                         })
                     
                     # Step 2: Embedding Generation
-                    processing_states[doc_id]["steps"]["embedding"] = {
-                        "current_step": "embedding",
-                        "message": f"Starting embedding generation for {file_name}",
-                        "start_time": time.time()
-                    }
-                    processing_states[doc_id].update({
-                        "message": f"Starting embedding generation for {file_name}"
-                    })
-                    
-                    # Add log entry
-                    processing_states[doc_id]["logs"].append({
-                        "timestamp": time.time(),
-                        "message": f"Starting embedding generation for {file_name}",
-                        "status": "step_started",
-                        "step": "embedding"
-                    })
-                    
-                    # Save updated states
-                    save_processing_states(processing_states)
+                    with processing_lock:
+                        processing_states = load_processing_states()
+                        processing_states[doc_id]["steps"]["embedding"] = {
+                            "current_step": "embedding",
+                            "message": f"Starting embedding generation for {file_name}",
+                            "start_time": time.time()
+                        }
+                        processing_states[doc_id].update({
+                            "message": f"Starting embedding generation for {file_name}"
+                        })
+                        
+                        # Add log entry
+                        processing_states[doc_id]["logs"].append({
+                            "timestamp": time.time(),
+                            "message": f"Starting embedding generation for {file_name}",
+                            "status": "step_started",
+                            "step": "embedding"
+                        })
+                        
+                        # Save updated states
+                        save_processing_states(processing_states)
                     
                     yield json.dumps({
                         "status": "step_started",
@@ -1216,12 +1204,14 @@ def process_documents():
                     
                     if not embedding_results:
                         # Update processing state with error
-                        processing_states[doc_id].update({
-                            "is_processing": False,
-                            "isError": True,
-                            "errorMessage": "Embedding generation failed"
-                        })
-                        save_processing_states(processing_states)
+                        with processing_lock:
+                            processing_states = load_processing_states()
+                            processing_states[doc_id].update({
+                                "is_processing": False,
+                                "isError": True,
+                                "errorMessage": "Embedding generation failed"
+                            })
+                            save_processing_states(processing_states)
                         
                         yield json.dumps({
                             "status": "step_failed",
@@ -1232,25 +1222,27 @@ def process_documents():
                         continue
                     
                     # Step 3: Qdrant Ingestion
-                    processing_states[doc_id]["steps"]["ingestion"] = {
-                        "current_step": "ingestion",
-                        "message": f"Starting Qdrant ingestion for {file_name}",
-                        "start_time": time.time()
-                    }
-                    processing_states[doc_id].update({
-                        "message": f"Starting Qdrant ingestion for {file_name}"
-                    })
-                    
-                    # Add log entry
-                    processing_states[doc_id]["logs"].append({
-                        "timestamp": time.time(),
-                        "message": f"Starting Qdrant ingestion for {file_name}",
-                        "status": "step_started",
-                        "step": "ingestion"
-                    })
-                    
-                    # Save updated states
-                    save_processing_states(processing_states)
+                    with processing_lock:
+                        processing_states = load_processing_states()
+                        processing_states[doc_id]["steps"]["ingestion"] = {
+                            "current_step": "ingestion",
+                            "message": f"Starting Qdrant ingestion for {file_name}",
+                            "start_time": time.time()
+                        }
+                        processing_states[doc_id].update({
+                            "message": f"Starting Qdrant ingestion for {file_name}"
+                        })
+                        
+                        # Add log entry
+                        processing_states[doc_id]["logs"].append({
+                            "timestamp": time.time(),
+                            "message": f"Starting Qdrant ingestion for {file_name}",
+                            "status": "step_started",
+                            "step": "ingestion"
+                        })
+                        
+                        # Save updated states
+                        save_processing_states(processing_states)
                     
                     yield json.dumps({
                         "status": "step_started",
@@ -1264,20 +1256,22 @@ def process_documents():
                         yield ingest_update
                     
                     # Update processing state for file completion
-                    processing_states[doc_id].update({
-                        "message": f"Completed processing for {file_name}",
-                        "progress": int(((file_idx + 1) / len(files)) * 100)
-                    })
-                    
-                    # Add log entry
-                    processing_states[doc_id]["logs"].append({
-                        "timestamp": time.time(),
-                        "message": f"Completed processing for {file_name}",
-                        "status": "file_completed"
-                    })
-                    
-                    # Save updated states
-                    save_processing_states(processing_states)
+                    with processing_lock:
+                        processing_states = load_processing_states()
+                        processing_states[doc_id].update({
+                            "message": f"Completed processing for {file_name}",
+                            "progress": int(((file_idx + 1) / len(files)) * 100)
+                        })
+                        
+                        # Add log entry
+                        processing_states[doc_id]["logs"].append({
+                            "timestamp": time.time(),
+                            "message": f"Completed processing for {file_name}",
+                            "status": "file_completed"
+                        })
+                        
+                        # Save updated states
+                        save_processing_states(processing_states)
                     
                     yield json.dumps({
                         "status": "file_completed",
@@ -1289,25 +1283,27 @@ def process_documents():
                     }) + "\n"
                 
                 # All files processed - mark as complete
-                for doc_id, file_name in document_ids:
-                    if doc_id in processing_states:
-                        # Mark as complete but don't remove immediately
-                        processing_states[doc_id].update({
-                            "is_processing": False,
-                            "message": f"Completed processing all {len(files)} files",
-                            "progress": 100,
-                            "completion_time": time.time()
-                        })
-                        
-                        # Add log entry
-                        processing_states[doc_id]["logs"].append({
-                            "timestamp": time.time(),
-                            "message": f"Completed processing all {len(files)} files",
-                            "status": "all_completed"
-                        })
-                
-                # Save updated states (keep completed entries so frontend can see them)
-                save_processing_states(processing_states)
+                with processing_lock:
+                    processing_states = load_processing_states()
+                    for doc_id, file_name in document_ids:
+                        if doc_id in processing_states:
+                            # Mark as complete but don't remove immediately
+                            processing_states[doc_id].update({
+                                "is_processing": False,
+                                "message": f"Completed processing all {len(files)} files",
+                                "progress": 100,
+                                "completion_time": time.time()
+                            })
+                            
+                            # Add log entry
+                            processing_states[doc_id]["logs"].append({
+                                "timestamp": time.time(),
+                                "message": f"Completed processing all {len(files)} files",
+                                "status": "all_completed"
+                            })
+                    
+                    # Save updated states (keep completed entries so frontend can see them)
+                    save_processing_states(processing_states)
                 
                 yield json.dumps({
                     "status": "all_completed",
@@ -1324,29 +1320,31 @@ def process_documents():
                 print(f"Traceback: {error_traceback}")
                 
                 # Mark as failed but don't remove immediately
-                for doc_id, file_name in document_ids:
-                    if doc_id in processing_states:
-                        try:
-                            processing_states[doc_id].update({
-                                "is_processing": False,
-                                "isError": True,
-                                "errorMessage": str(e),
-                                "completion_time": time.time()
-                            })
-                            
-                            # Add log entry
-                            processing_states[doc_id]["logs"].append({
-                                "timestamp": time.time(),
-                                "message": f"Processing failed: {str(e)}",
-                                "status": "process_error",
-                                "error": str(e),
-                                "traceback": error_traceback
-                            })
-                        except Exception as gen_error:
-                            print(f"ERROR updating state in generator: {str(gen_error)}")
-                
-                # Save updated states (keep failed entries so frontend can see them)
-                save_processing_states(processing_states)
+                with processing_lock:
+                    processing_states = load_processing_states()
+                    for doc_id, file_name in document_ids:
+                        if doc_id in processing_states:
+                            try:
+                                processing_states[doc_id].update({
+                                    "is_processing": False,
+                                    "isError": True,
+                                    "errorMessage": str(e),
+                                    "completion_time": time.time()
+                                })
+                                
+                                # Add log entry
+                                processing_states[doc_id]["logs"].append({
+                                    "timestamp": time.time(),
+                                    "message": f"Processing failed: {str(e)}",
+                                    "status": "process_error",
+                                    "error": str(e),
+                                    "traceback": error_traceback
+                                })
+                            except Exception as gen_error:
+                                print(f"ERROR updating state in generator: {str(gen_error)}")
+                    
+                    # Save updated states (keep failed entries so frontend can see them)
+                    save_processing_states(processing_states)
                 
                 yield json.dumps({
                     "status": "process_error",
@@ -1363,28 +1361,29 @@ def process_documents():
         
         # Mark as failed but don't remove immediately
         if 'company_id' in locals() and 'files' in locals():
-            processing_states = load_processing_states()
-            for file_name in files:
-                try:
-                    doc_id = generate_document_id(company_id, file_name)
-                    if doc_id in processing_states:
-                        processing_states[doc_id].update({
-                            "is_processing": False,
-                            "isError": True,
-                            "errorMessage": str(e),
-                            "completion_time": time.time()
-                        })
-                        # Add log entry
-                        processing_states[doc_id]["logs"].append({
-                            "timestamp": time.time(),
-                            "message": f"Failed to start processing: {str(e)}",
-                            "status": "start_error",
-                            "error": str(e),
-                            "traceback": error_traceback
-                        })
-                except Exception as gen_error:
-                    print(f"ERROR generating doc_id or updating state: {str(gen_error)}")
-            save_processing_states(processing_states)
+            with processing_lock:
+                processing_states = load_processing_states()
+                for file_name in files:
+                    try:
+                        doc_id = generate_document_id(company_id, file_name)
+                        if doc_id in processing_states:
+                            processing_states[doc_id].update({
+                                "is_processing": False,
+                                "isError": True,
+                                "errorMessage": str(e),
+                                "completion_time": time.time()
+                            })
+                            # Add log entry
+                            processing_states[doc_id]["logs"].append({
+                                "timestamp": time.time(),
+                                "message": f"Failed to start processing: {str(e)}",
+                                "status": "start_error",
+                                "error": str(e),
+                                "traceback": error_traceback
+                            })
+                    except Exception as gen_error:
+                        print(f"ERROR generating doc_id or updating state: {str(gen_error)}")
+                save_processing_states(processing_states)
             
         return jsonify({
             'success': False,
@@ -1405,7 +1404,6 @@ def get_document_processing_states():
 
 # Global variables for SSE
 processing_listeners = set()
-processing_lock = threading.Lock()
 
 def notify_processing_update(data):
     """Notify all listeners of a processing update"""
@@ -1462,4 +1460,4 @@ def processing_updates():
     return Response(event_stream(), mimetype="text/event-stream")
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    app.run(host='0.0.0.0', port=5000, debug=True, threaded=True)
