@@ -1,7 +1,60 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { Contract, Company, QdrantDocumentMetadata, QdrantCompany, ProcessingState } from '@/types';
+import LoadingSpinner from '@/components/LoadingSpinner';
+
+interface Contract {
+  name: string;
+  size: number;
+  uploadDate: string;
+}
+
+interface Company {
+  id: string;
+  name: string;
+  contracts: Contract[];
+}
+
+interface QdrantDocumentMetadata {
+  doc_id: string;
+  upload_time: string;
+  pages: number[];
+}
+
+interface QdrantCompany {
+  name: string;
+  documents: Record<string, QdrantDocumentMetadata>;
+}
+
+interface ProcessingState {
+  isProcessing: boolean;
+  isError?: boolean;
+  errorMessage?: string;
+  currentFile?: string;
+  currentStep?: string;
+  progress?: number;
+  message?: string;
+  fileIndex?: number;
+  totalFiles?: number;
+  currentPage?: number;
+  totalPages?: number;
+  completedPages?: number;
+  steps?: Record<string, any>;
+  companyId?: string; // Added
+  doc_id?: string; // Added
+  ocrProgress?: {
+    current_page: number;
+    total_pages: number;
+  };
+  embeddingProgress?: {
+    batch: number;
+    total_batches: number;
+  };
+  ingestionProgress?: {
+    points_ingested: number;
+    total_points: number;
+  };
+}
 
 interface CompanyCardProps {
   company: Company;
@@ -183,7 +236,7 @@ export default function CompanyCard({
                       </>
                     ) : (
                       <>
-                        <div className="w-3 h-3 rounded-full bg-blue-500 animate-pulse mr-2"></div>
+                        <LoadingSpinner size="small" color="#2563eb" className="mr-2" />
                         <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
                           Processing...
                         </span>
@@ -333,7 +386,7 @@ export default function CompanyCard({
                       </p>
                     </div>
                     {contractProcessingState?.isProcessing ? (
-                      <div className="absolute top-0 right-0 w-3 h-3 bg-blue-500 rounded-full animate-pulse" title="Processing"></div>
+                      <LoadingSpinner size="small" color="#2563eb" className="absolute top-0 right-0" />
                     ) : contractProcessingState?.isError ? (
                       <div className="absolute top-0 right-0 w-3 h-3 bg-red-500 rounded-full" title={`Error: ${contractProcessingState.errorMessage}`}></div>
                     ) : isSynced ? (

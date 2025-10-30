@@ -636,6 +636,59 @@ def ingest_to_qdrant(points_data, company_name, source_name):
             }
         }) + "\n"
         
+        # After successful ingestion, notify all clients to refresh Qdrant data
+        try:
+            # This is a simplified version of get_companies_with_documents
+            # to avoid circular imports or re-calling the full Flask route
+            company_documents = {}
+            offset = None
+            while True:
+                response = qdrant_client.scroll(
+                    collection_name=QDRANT_COLLECTION,
+                    limit=100,
+                    offset=offset,
+                    with_payload=True,
+                    with_vectors=False
+                )
+                points, next_offset = response
+                for point in points:
+                    metadata = point.payload.get('metadata', {}) if point.payload else {}
+                    company = metadata.get('company')
+                    source = metadata.get('source')
+                    doc_id_meta = metadata.get('doc_id')
+                    upload_time = metadata.get('upload_time')
+                    page = metadata.get('page')
+                    
+                    if company and source:
+                        if company not in company_documents:
+                            company_documents[company] = {}
+                        if source not in company_documents[company]:
+                            company_documents[company][source] = {
+                                'doc_id': doc_id_meta,
+                                'upload_time': upload_time,
+                                'pages': []
+                            }
+                        if page is not None:
+                            company_documents[company][source]['pages'].append(page)
+                if next_offset is None:
+                    break
+                offset = next_offset
+            
+            result = {}
+            for comp, docs in company_documents.items():
+                result[comp] = {}
+                for doc_name, doc_info in docs.items():
+                    doc_info['pages'].sort()
+                    result[comp][doc_name] = doc_info
+            
+            notify_processing_update({
+                "type": "qdrant_data_updated",
+                "data": result
+            })
+            print("DEBUG: Notified clients of Qdrant data update")
+        except Exception as qdrant_notify_error:
+            print(f"ERROR notifying Qdrant data update: {qdrant_notify_error}")
+        
     except Exception as e:
         yield json.dumps({
             "status": "ingestion_failed",
@@ -1351,7 +1404,22 @@ def process_documents():
                     "error": f"Processing failed: {str(e)}"
                 }) + "\n"
         
-        return Response(stream_with_context(generate()), content_type='application/json')
+        def start_processing_in_background():
+            # The generate() function contains the core processing logic
+            # It yields updates, but in this background context, we just want it to run to completion
+            # We iterate through it to ensure all steps are executed
+            for _ in generate():
+                pass
+
+        # Start the processing in a new thread
+        processing_thread = threading.Thread(target=start_processing_in_background)
+        processing_thread.daemon = True  # Allow the main program to exit even if this thread is still running
+        processing_thread.start()
+
+        return jsonify({
+            'success': True,
+            'message': 'Document processing started in background.'
+        }), 202
         
     except Exception as e:
         # Log the full error traceback for debugging

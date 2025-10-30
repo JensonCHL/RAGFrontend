@@ -5,6 +5,7 @@ import CompanyCard from '@/components/CompanyCard';
 import FolderUpload from '@/components/FolderUpload';
 import CompanyCreationForm from '@/components/CompanyCreationForm';
 import ProcessingProgressDisplay from '@/components/ProcessingProgressDisplay';
+import LoadingSpinner from '@/components/LoadingSpinner';
 import Link from 'next/link';
 import { Contract, Company, QdrantDocumentMetadata, QdrantCompany, ProcessingState } from '@/types';
 
@@ -113,9 +114,14 @@ export default function FileManagementPage() {
           const data = JSON.parse(event.data);
 
           // Handle different types of messages
-          if (data.type === 'states_updated') {
+            if (data.type === 'states_updated') {
             const newStates = convertKeysToCamelCase(data.states);
             setProcessingStates(prev => ({ ...prev, ...newStates }));
+          } else if (data.type === 'qdrant_data_updated') {
+            // Update qdrantData directly from the SSE message
+            const newQdrantData = convertKeysToCamelCase(data.data);
+            setQdrantData(newQdrantData);
+            console.log('Qdrant data updated via SSE:', newQdrantData);
           } else if (data.type === 'page_started' || data.type === 'page_completed') {
             // Update page-level progress for the specific document
             setProcessingStates(prev => {
@@ -749,7 +755,7 @@ export default function FileManagementPage() {
 
           <div className="bg-white rounded-lg shadow p-8 flex justify-center items-center">
             <div className="text-center">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+              <LoadingSpinner size="large" color="#2563eb" className="mx-auto" />
               <p className="mt-4 text-gray-600">Loading companies...</p>
             </div>
           </div>
@@ -847,10 +853,7 @@ export default function FileManagementPage() {
             <h2 className="text-xl font-semibold text-gray-800 flex items-center">
               Companies ({filteredCompanies.length})
               {loadingQdrant && (
-                <svg className="animate-spin ml-2 h-4 w-4 text-blue-600" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
+                <LoadingSpinner size="small" color="#2563eb" className="ml-2" />
               )}
             </h2>
             {!isCreatingCompany ? (
