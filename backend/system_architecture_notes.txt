@@ -1,0 +1,134 @@
+# RAG System Architecture Notes
+
+## Sync Status Determination Logic
+
+The system determines if a file is synced by comparing the local file system data with the Qdrant database records:
+
+1. **Local Data Source**: Frontend gets file information through API calls to the backend
+2. **Qdrant Data Source**: Frontend fetches Qdrant document data through `/api/companies-with-documents` endpoint
+3. **Comparison Logic**: System compares document names between local files and Qdrant records
+
+### Implementation in CompanyCard Component
+
+```javascript
+const getSyncStatus = () => {
+  if (!qdrantData) {
+    // Company not found in Qdrant
+    return {
+      syncedCount: 0,
+      totalCount: company.contracts.length,
+      isSynced: false,
+      hasUnsynced: company.contracts.length > 0
+    };
+  }
+  
+  const syncedDocs = Object.keys(qdrantData.documents);
+  const totalDocs = company.contracts.length;
+  const syncedCount = company.contracts.filter(contract => 
+    syncedDocs.includes(contract.name)
+  ).length;
+  
+  return {
+    syncedCount,
+    totalCount: totalDocs,
+    isSynced: syncedCount === totalDocs && totalDocs > 0,
+    hasUnsynced: syncedCount < totalDocs
+  };
+};
+```
+
+### Qdrant Data Structure
+
+The `/api/companies-with-documents` endpoint returns:
+```javascript
+{
+  "Company A": {
+    "document1.pdf": { doc_id, upload_time, pages: [1,2,3] },
+    "document2.pdf": { doc_id, upload_time, pages: [1,2] }
+  }
+}
+```
+
+### Status Determination Rules
+
+- **Synced**: Document exists in both local and Qdrant
+- **Not Sync**: Document exists locally but not in Qdrant
+- **Empty**: No documents in either location
+
+## Process Button Logic
+
+When the "Process" button is clicked for a company:
+
+1. **Identify Unsynced Documents**: 
+   - Compare local file list with Qdrant records
+   - Find documents that exist locally but not in Qdrant
+
+2. **Initiate Processing Pipeline**:
+   - Send unsynced documents through the 3-step processing pipeline
+   - Process multiple files sequentially with progress tracking
+
+3. **Three-Step Processing Pipeline**:
+   - **Step 1: OCR** - Extract text from PDF pages using LLM-based OCR
+   - **Step 2: Embedding** - Generate vector representations with metadata
+   - **Step 3: Ingestion** - Store vectors in Qdrant database
+
+4. **Status Update**:
+   - Refresh Qdrant data to reflect new sync status
+   - Update UI to show documents as "Processed/Synced"
+   - Remove "Not Sync" badges and process buttons
+
+### Current Implementation
+
+The backend now has a complete `/api/process-documents` endpoint that handles all three steps:
+
+1. **OCR Processing** (`/api/process-documents`):
+   - Uses Deka AI's Llama-4-Maverick-Instruct model
+   - Processes PDF pages as high-resolution images (3x zoom)
+   - Preserves exact document formatting including tables and special characters
+   - Implements retry mechanism (3 attempts) with exponential backoff
+   - Streams progress updates for each page
+
+2. **Embedding Generation** (`/api/process-documents`):
+   - Uses Baai/bge-multilingual-gemma2 model through OpenAIEmbeddings
+   - Processes text in batches (default size: 64)
+   - Generates semantic vector representations for similarity search
+   - Creates unique point IDs using UUIDv5
+   - Streams progress updates for each batch
+
+3. **Qdrant Ingestion** (`/api/process-documents`):
+   - Stores vector embeddings with metadata in Qdrant
+   - Uses upsert operations (insert or update)
+   - Implements proper indexing for efficient querying
+   - Streams progress updates for each batch
+
+### API Response Structure
+
+The API returns streaming JSON progress updates:
+```javascript
+{
+  "status": "processing|completed|error",
+  "current_file": "filename.pdf",
+  "current_step": "ocr|embedding|ingestion",
+  "progress": percentage,
+  "details": "Descriptive message"
+}
+```
+
+### Required Frontend Integration
+
+To fully implement the process button functionality, the frontend needs:
+
+1. **Streaming Progress Updates**: 
+   - Connect to the streaming API endpoint
+   - Parse and display real-time progress updates
+   - Show progress bars for each step
+
+2. **UI Updates**:
+   - Visual feedback during processing
+   - Error handling and user notifications
+   - Auto-refresh of Qdrant data after completion
+
+3. **State Management**:
+   - Track processing status for multiple files
+   - Handle cancellations if needed
+   - Update sync status indicators in real-time

@@ -1,36 +1,76 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Document Ingestion Web App
+
+This is a Next.js project for managing document ingestion before accessing the RAG system.
+
+## Project Structure
+
+- `/src/app/dashboard` - Main dashboard frontend
+- `/src/components` - Reusable UI components
+- `/src/app/api` - Next.js API routes for file operations
+- `/backend` - Flask API for Qdrant data retrieval
+- `/knowledge` - Persistent storage for uploaded files
 
 ## Getting Started
 
-First, run the development server:
+### Prerequisites
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+1. Node.js and npm
+2. Python 3.7+
+3. Access to Qdrant database (configured in .env)
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### Running the Application
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+You need to run both the frontend and backend services:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+1. **Start the Flask backend** (handles Qdrant data):
+   ```bash
+   # Windows
+   run_backend.bat
+   
+   # Or manually:
+   cd backend
+   pip install -r requirements.txt
+   python app.py
+   ```
 
-## Learn More
+2. **Start the Next.js frontend**:
+   ```bash
+   # Windows
+   run_frontend.bat
+   
+   # Or manually:
+   npm run dev
+   ```
 
-To learn more about Next.js, take a look at the following resources:
+The application will be available at:
+- Frontend: [http://localhost:3000](http://localhost:3000)
+- Backend API: [http://localhost:5000](http://localhost:5000)
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### Features
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+1. **File Upload**:
+   - Drag and drop PDF contracts
+   - Create companies and upload documents
+   - Files stored in `/knowledge` directory
 
-## Deploy on Vercel
+2. **Document Management**:
+   - View uploaded companies and their contracts
+   - Delete individual files or entire companies
+   - Direct file system operations
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+3. **Processed Documents**:
+   - View companies and documents from Qdrant
+   - Expand companies to see associated documents
+   - Real-time data from backend processing
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Development
+
+This project uses:
+- Next.js 16 with App Router
+- TypeScript
+- Tailwind CSS v4
+- Flask for backend API
+- Qdrant client for vector database operations
+
+You can start editing the page by modifying `app/dashboard/page.tsx`. The page auto-updates as you edit the file.
+"# RAGFrontend" 

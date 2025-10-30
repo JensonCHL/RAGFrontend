@@ -1,0 +1,82 @@
+# RAG Document Processing Pipeline Summary
+
+## 1. OCR (Optical Character Recognition) Method
+
+### Overview
+- Uses LLM-based OCR with Deka AI's Llama-4-Maverick-Instruct model
+- Processes PDF pages as high-resolution images (3x zoom)
+- Designed specifically for legal/technical contracts in English and Indonesian
+
+### Key Features
+- Preserves exact document formatting including tables, line breaks, and special characters
+- Uses system prompts tailored for legal document extraction
+- Handles multi-language documents with language detection filtering
+- Implements retry mechanism (3 attempts) with exponential backoff
+- Processes one page at a time, creating text chunks with metadata
+
+### Technical Details
+- Image conversion: PDF pages → JPEG images (fitz/PIL libraries)
+- API calls to Deka AI with image_url format
+- Text cleaning and normalization (_clean_text function)
+- Language validation (English/Indonesian only)
+- Error handling with fallback text for failed pages
+- Word counting and language mismatch detection
+
+## 2. Embedding Process
+
+### Overview
+- Uses OpenAI-compatible embeddings with Baai/bge-multilingual-gemma2 model
+- Processes text in batches (default size: 64)
+- Generates semantic vector representations for similarity search
+
+### Key Components
+- OpenAIEmbeddings wrapper for Deka AI integration
+- Dynamic dimension detection from model
+- Unique point ID generation using UUIDv5 (document hash + page number)
+- Batch processing for efficiency
+
+### Metadata Preservation
+- Company name
+- Source document name
+- Page number
+- File path
+- Document ID (hash-based)
+- Word count
+- Language mismatch flag
+- Upload timestamp
+
+## 3. Qdrant Ingestion
+
+### Overview
+- Stores vector embeddings with metadata in Qdrant vector database
+- Uses upsert operations (insert or update)
+- Implements proper indexing for efficient querying
+
+### Database Structure
+- Collection creation with cosine distance metric
+- Payload indexing on: metadata.source, metadata.company, metadata.doc_id
+- Point structure:
+  * Vector representation
+  * Content text
+  * Rich metadata
+
+### Integration Points
+- Supabase synchronization for document indexing
+- Batch upsert operations for performance
+- Error handling and status reporting
+
+## Overall Processing Flow
+
+1. PDF Upload → Page Images → LLM OCR → Text Chunks
+2. Manual Review/Edit Interface (Quality Control)
+3. Text Chunks → Embedding Model → Vector Representations
+4. Vectors + Metadata → Qdrant Storage
+5. Document Info → Supabase Indexing
+
+## Key Design Principles
+
+- Quality Control: Manual review step before embedding
+- Robustness: Retry mechanisms and error handling
+- Efficiency: Batch processing and progress tracking
+- Traceability: Comprehensive metadata and document hashing
+- Scalability: Configurable batch sizes and timeouts

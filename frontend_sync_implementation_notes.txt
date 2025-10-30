@@ -1,0 +1,68 @@
+# Sync Button and Progress Bar Implementation
+
+## Frontend Implementation
+
+### 1. State Management
+- Added `processingStates` to track processing status for each company
+- Each company can have its own processing state with:
+  - `isProcessing`: Boolean indicating if processing is active
+  - `currentFile`: Name of the file currently being processed
+  - `currentStep`: Current step (ocr, embedding, ingestion)
+  - `progress`: Progress percentage
+  - `message`: Descriptive message
+  - `fileIndex`: Current file index
+  - `totalFiles`: Total number of files to process
+
+### 2. CompanyCard Component Updates
+- Added `processingState` prop to receive processing status
+- Display animated "Processing..." badge when processing is active
+- Show current file name being processed
+- Added progress bar below the company header when processing
+- Progress bar shows file progress and step information
+
+### 3. File Management Page Updates
+- Pass `processingStates[company.id]` to each CompanyCard
+- Added detailed progress bar in the company modal
+- Enhanced `handleProcessUnsyncedDocuments` function with:
+  - Proper error handling
+  - Streaming response processing
+  - Real-time state updates
+  - Qdrant data refresh after completion
+
+### 4. Progress Visualization
+- **Grid View**: Simple progress bar below company header
+- **Modal View**: Detailed progress information with:
+  - File counter (X/Y files)
+  - Current file name
+  - Current step (OCR, Embedding, Ingestion)
+  - Progress percentage
+  - Descriptive messages
+
+## Backend Integration
+
+### API Endpoint
+- Connects to `http://localhost:5000/api/process-documents`
+- Sends company_id and list of unsynced files
+- Receives streaming JSON updates
+
+### Response Handling
+- Parses streaming JSON responses line by line
+- Updates UI in real-time with processing status
+- Handles errors gracefully
+- Refreshes Qdrant data after completion
+
+## User Experience
+
+### Visual Feedback
+- Animated processing indicator
+- Progress bars with smooth transitions
+- Real-time status updates
+- Error messages for failed operations
+
+### Workflow
+1. User clicks "Process" button on a company with unsynced documents
+2. System identifies unsynced files
+3. Processing starts with visual feedback
+4. Real-time updates show progress through OCR → Embedding → Ingestion
+5. On completion, Qdrant data is refreshed
+6. UI updates to show documents as "Processed"
