@@ -11,6 +11,8 @@ from qdrant_client.models import Filter, FieldCondition, MatchValue
 import threading
 import traceback # Import the traceback module
 
+
+
 # Load environment variables
 import os
 from dotenv import load_dotenv # Import load_dotenv
@@ -21,6 +23,20 @@ load_dotenv(env_path)
 
 app = Flask(__name__)
 CORS(app)  # Enable CORS for all routes
+
+# OCR Cache Configuration
+OCR_CACHE_DIR = os.path.join(project_root, "backend", "ocr_cache")
+os.makedirs(OCR_CACHE_DIR, exist_ok=True)
+
+def get_ocr_cache_path(company_id, source_name):
+    """Constructs the path for an OCR cache file, creating subdirs as needed."""
+    import re
+    safe_company_id = re.sub(r'[\\/*?:"<>|]', "_", company_id)
+    
+    company_cache_dir = os.path.join(OCR_CACHE_DIR, safe_company_id)
+    os.makedirs(company_cache_dir, exist_ok=True)
+    
+    return os.path.join(company_cache_dir, f"{source_name}.json")
 
 # Global lock for thread-safe operations on the processing state
 processing_lock = threading.RLock()
@@ -156,10 +172,31 @@ def build_meta_header(meta: dict) -> str:
     page = (meta or {}).get("page", "N/A")
     return f"Company: {company}\nDocument: {source}\nPage: {page}\n---\n"
 
+
+
 def ocr_pdf_pages(pdf_path: str, company_id: str, company: str, source_name: str, doc_id: str):
-    """
-    OCR PDF pages and yield progress updates - adapted from reference.py
-    """
+
+    # OCR PDF pages and yield progress updates - adapted from reference.py
+    cache_path = get_ocr_cache_path(company_id, source_name)
+    if os.path.exists(cache_path):
+        print(f"DEBUG: Found side-by-side OCR cache for {source_name}. Loading from file.")
+        try:
+            with open(cache_path, 'r') as f:
+                cached_pages_data = json.load(f)
+            
+            yield json.dumps({"status": "started", "message": f"Loading {source_name} from cache..."}) + "\n"
+            yield json.dumps({
+                "status": "completed",
+                "success_pages": len(cached_pages_data),
+                "failed_pages": 0,
+                "total_pages": len(cached_pages_data),
+                "pages_data": cached_pages_data,
+                "message": f"OCR completed for {source_name} from cache."
+            }) + "\n"
+            return
+        except Exception as e:
+            print(f"ERROR: Failed to load OCR cache for {source_name}: {e}. Re-processing.")
+
     import fitz  # PyMuPDF
     
     print(f"DEBUG: Starting OCR for {source_name} (doc_id: {doc_id})")
@@ -187,7 +224,6 @@ def ocr_pdf_pages(pdf_path: str, company_id: str, company: str, source_name: str
     pages_out = []
     
     for i in range(total_pages):
-        # Update processing state with current page info
         with processing_lock:
             processing_states = load_processing_states(company_id)
             if doc_id in processing_states:
@@ -196,7 +232,6 @@ def ocr_pdf_pages(pdf_path: str, company_id: str, company: str, source_name: str
                     "total_pages": total_pages,
                     "message": f"Processing page {i+1}/{total_pages}"
                 })
-                # Update steps info
                 if "steps" in processing_states[doc_id] and "ocr" in processing_states[doc_id]["steps"]:
                     processing_states[doc_id]["steps"]["ocr"].update({
                         "current_page": i + 1,
@@ -205,7 +240,6 @@ def ocr_pdf_pages(pdf_path: str, company_id: str, company: str, source_name: str
                     })
                 save_processing_states(company_id, processing_states)
         
-        # Notify real-time listeners of page start
         notify_processing_update({
             "type": "page_started",
             "doc_id": doc_id,
@@ -228,7 +262,6 @@ def ocr_pdf_pages(pdf_path: str, company_id: str, company: str, source_name: str
         page_success = False
         last_error = None
         
-        # Send progress update that we're starting this page
         with processing_lock:
             processing_states = load_processing_states(company_id)
             current_file_name = processing_states.get(doc_id, {}).get("current_file") if 'doc_id' in locals() else source_name
@@ -384,7 +417,14 @@ def ocr_pdf_pages(pdf_path: str, company_id: str, company: str, source_name: str
                     page_success = True
     
     doc.close()
-    
+
+    try:
+        with open(cache_path, 'w') as f:
+            json.dump(pages_out, f, indent=2)
+        print(f"DEBUG: Saved OCR results for {source_name} to cache.")
+    except Exception as e:
+        print(f"ERROR: Failed to save OCR cache for {source_name}: {e}")
+
     yield json.dumps({
         "status": "completed",
         "success_pages": success_pages,
@@ -881,26 +921,57 @@ def get_companies_with_documents():
 @app.route('/api/companies/<company_name>', methods=['DELETE'])
 def delete_company_data(company_name):
     """
-    Delete all data for a specific company from Qdrant
+    Delete all data for a specific company from Qdrant and its OCR cache.
     """
     try:
-        # Create filter for the specific company
-        company_filter = Filter(
-            must=[
-                FieldCondition(
-                    key="metadata.company",
-                    match=MatchValue(value=company_name)
-                )
-            ]
-        )
-        
-        # Delete points matching the filter
-        response = qdrant_client.delete(
+        # First, find all documents associated with the company
+        document_names = []
+        company_filter = Filter(must=[FieldCondition(key="metadata.company", match=MatchValue(value=company_name))])
+        offset = None
+        while True:
+            points, next_offset = qdrant_client.scroll(
+                collection_name=QDRANT_COLLECTION,
+                scroll_filter=company_filter,
+                limit=100,
+                with_payload=["metadata.source"],
+                offset=offset
+            )
+            for point in points:
+                source = point.payload.get("metadata", {}).get("source")
+                if source and source not in document_names:
+                    document_names.append(source)
+            if next_offset is None:
+                break
+            offset = next_offset
+
+        # Delete all points for the company from Qdrant
+        qdrant_client.delete(
             collection_name=QDRANT_COLLECTION,
             points_selector=company_filter
         )
+        print(f"DEBUG: Deleted Qdrant data for company {company_name}")
+
+        # Now, delete all associated OCR cache files
+        for doc_name in document_names:
+            try:
+                cache_path = get_ocr_cache_path(company_name, doc_name)
+                if os.path.exists(cache_path):
+                    os.remove(cache_path)
+                    print(f"DEBUG: Deleted OCR cache file: {cache_path}")
+            except Exception as e:
+                print(f"ERROR: Failed to delete OCR cache file for {doc_name}: {e}")
         
-        # The response might not have a count attribute, so we'll just return success
+        # Finally, delete the empty company cache directory
+        try:
+            import re
+            safe_company_id = re.sub(r'[\\/*?:"<>|]', "_", company_name)
+            company_cache_dir = os.path.join(OCR_CACHE_DIR, safe_company_id)
+            if os.path.exists(company_cache_dir) and not os.listdir(company_cache_dir):
+                os.rmdir(company_cache_dir)
+                print(f"DEBUG: Deleted empty company cache directory: {company_cache_dir}")
+        except Exception as e:
+            print(f"ERROR: Failed to delete company cache directory for {company_name}: {e}")
+
         return jsonify({
             'success': True,
             'message': f'Successfully deleted documents for company {company_name}'
@@ -988,6 +1059,16 @@ def delete_document(company_name, document_name):
         )
         
         # The response might not have a count attribute, so we'll just return success
+        
+        # Also delete the OCR cache file
+        try:
+            cache_path = get_ocr_cache_path(company_name, document_name)
+            if os.path.exists(cache_path):
+                os.remove(cache_path)
+                print(f"DEBUG: Deleted OCR cache file: {cache_path}")
+        except Exception as e:
+            print(f"ERROR: Failed to delete OCR cache file for {document_name}: {e}")
+
         return jsonify({
             'success': True,
             'message': f'Successfully deleted document {document_name} with doc_id {doc_id}'
