@@ -27,6 +27,8 @@ export default function DashboardPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [showProcessingStates, setShowProcessingStates] = useState(true); // Define showProcessingStates
   const [processingStates, setProcessingStates] = useState<ProcessingState[]>([]);
+  const [selectedItems, setSelectedItems] = useState<Record<string, boolean>>({}); // For bulk selection
+  const [isSelecting, setIsSelecting] = useState(false); // Toggle selection mode
 
   // Fetch all Qdrant data on page load
   useEffect(() => {
@@ -233,6 +235,111 @@ export default function DashboardPage() {
     }
   };
 
+  // Bulk delete functions
+  const toggleSelection = (key: string) => {
+    setSelectedItems(prev => ({
+      ...prev,
+      [key]: !prev[key]
+    }));
+  };
+
+  const selectAll = () => {
+    const newSelectedItems: Record<string, boolean> = {};
+    filteredCompanies.forEach(company => {
+      // Select company
+      newSelectedItems[`company:${company.name}`] = true;
+      // Select all documents in expanded companies
+      if (company.isExpanded) {
+        Object.keys(company.documents).forEach(docName => {
+          newSelectedItems[`document:${company.name}:${docName}`] = true;
+        });
+      }
+    });
+    setSelectedItems(newSelectedItems);
+  };
+
+  const clearSelection = () => {
+    setSelectedItems({});
+  };
+
+  const bulkDelete = async () => {
+    const selectedCompanies = Object.keys(selectedItems)
+      .filter(key => key.startsWith('company:') && selectedItems[key])
+      .map(key => key.split(':')[1]);
+    
+    const selectedDocuments = Object.keys(selectedItems)
+      .filter(key => key.startsWith('document:') && selectedItems[key])
+      .map(key => {
+        const [, company, document] = key.split(':');
+        return { company, document };
+      });
+
+    if (selectedCompanies.length === 0 && selectedDocuments.length === 0) {
+      alert('Please select at least one item to delete.');
+      return;
+    }
+
+    const message = `Are you sure you want to delete ${selectedCompanies.length} companies and ${selectedDocuments.length} documents? This action cannot be undone.`;
+    if (!confirm(message)) {
+      return;
+    }
+
+    try {
+      setDeleting({});
+
+      // Delete companies
+      for (const companyName of selectedCompanies) {
+        setDeleting({ company: companyName });
+        const response = await fetch(`http://localhost:5000/api/companies/${companyName}`, {
+          method: 'DELETE',
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+          setQdrantCompanies(prev => prev.filter(company => company.name !== companyName));
+        } else {
+          alert(`Failed to delete company "${companyName}": ${data.error}`);
+        }
+      }
+
+      // Delete documents
+      for (const { company, document } of selectedDocuments) {
+        setDeleting({ company, document });
+        const response = await fetch(`http://localhost:5000/api/companies/${company}/documents/${encodeURIComponent(document)}`, {
+          method: 'DELETE',
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+          setQdrantCompanies(prev => 
+            prev.map(comp => 
+              comp.name === company 
+                ? { 
+                    ...comp, 
+                    documents: Object.fromEntries(
+                      Object.entries(comp.documents).filter(([name]) => name !== document)
+                    )
+                  } 
+                : comp
+            )
+          );
+        } else {
+          alert(`Failed to delete document "${document}": ${data.error}`);
+        }
+      }
+
+      alert('Bulk deletion completed.');
+      clearSelection();
+    } catch (err) {
+      console.error('Error during bulk deletion:', err);
+      alert('Failed to complete bulk deletion. Please try again.');
+    } finally {
+      setDeleting({});
+    }
+  };
+
   // Format upload time for display
   const formatUploadTime = (uploadTime: string) => {
     try {
@@ -344,15 +451,54 @@ export default function DashboardPage() {
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
-            <button 
-              onClick={fetchQdrantData}
-              className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-            >
-              <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
-              </svg>
-              Refresh
-            </button>
+            <div className="flex space-x-2">
+              <button 
+                onClick={() => setIsSelecting(!isSelecting)}
+                className={`inline-flex items-center px-4 py-2 border text-sm font-medium rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 ${
+                  isSelecting 
+                    ? 'border-blue-300 text-blue-700 bg-blue-50 hover:bg-blue-100' 
+                    : 'border-gray-300 text-gray-700 bg-white hover:bg-gray-50'
+                }`}
+              >
+                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+                {isSelecting ? 'Cancel Selection' : 'Select Items'}
+              </button>
+              {isSelecting && (
+                <>
+                  <button 
+                    onClick={selectAll}
+                    className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                  >
+                    Select All
+                  </button>
+                  <button 
+                    onClick={bulkDelete}
+                    disabled={Object.values(selectedItems).filter(Boolean).length === 0}
+                    className={`inline-flex items-center px-4 py-2 border text-sm font-medium rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 ${
+                      Object.values(selectedItems).filter(Boolean).length === 0
+                        ? 'border-gray-300 text-gray-400 bg-gray-100 cursor-not-allowed'
+                        : 'border-red-300 text-red-700 bg-red-50 hover:bg-red-100'
+                    }`}
+                  >
+                    <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                    </svg>
+                    Delete Selected
+                  </button>
+                </>
+              )}
+              <button 
+                onClick={fetchQdrantData}
+                className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+              >
+                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                </svg>
+                Refresh
+              </button>
+            </div>
           </div>
         </div>
 
@@ -415,49 +561,61 @@ export default function DashboardPage() {
                 <div key={company.name} className="bg-white rounded-lg shadow overflow-hidden">
                   <div className="p-6">
                     <div className="flex justify-between items-center">
-                      <div 
-                        className="flex items-center cursor-pointer flex-grow"
-                        onClick={() => toggleCompany(company.name)}
-                      >
-                        <svg 
-                          className={`w-5 h-5 text-gray-400 mr-3 transform transition-transform duration-200 ${company.isExpanded ? 'rotate-90' : ''}`} 
-                          fill="none" 
-                          stroke="currentColor" 
-                          viewBox="0 0 24 24" 
-                          xmlns="http://www.w3.org/2000/svg"
+                      <div className="flex items-center flex-grow">
+                        {isSelecting && (
+                          <input
+                            type="checkbox"
+                            checked={!!selectedItems[`company:${company.name}`]}
+                            onChange={() => toggleSelection(`company:${company.name}`)}
+                            className="h-4 w-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500 mr-3"
+                          />
+                        )}
+                        <div 
+                          className="flex items-center cursor-pointer flex-grow"
+                          onClick={() => toggleCompany(company.name)}
                         >
-                          <path 
-                            strokeLinecap="round" 
-                            strokeLinejoin="round" 
-                            strokeWidth="2" 
-                            d="M9 5l7 7-7 7"
-                          ></path>
-                        </svg>
-                        <h3 className="text-lg font-semibold text-gray-900">{company.name}</h3>
+                          <svg 
+                            className={`w-5 h-5 text-gray-400 mr-3 transform transition-transform duration-200 ${company.isExpanded ? 'rotate-90' : ''}`} 
+                            fill="none" 
+                            stroke="currentColor" 
+                            viewBox="0 0 24 24" 
+                            xmlns="http://www.w3.org/2000/svg"
+                          >
+                            <path 
+                              strokeLinecap="round" 
+                              strokeLinejoin="round" 
+                              strokeWidth="2" 
+                              d="M9 5l7 7-7 7"
+                            ></path>
+                          </svg>
+                          <h3 className="text-lg font-semibold text-gray-900">{company.name}</h3>
+                        </div>
                       </div>
                       <div className="flex items-center space-x-2">
                         <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
                           {Object.keys(company.documents).length} {Object.keys(company.documents).length === 1 ? 'document' : 'documents'}
                         </span>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            deleteCompany(company.name);
-                          }}
-                          disabled={deleting.company === company.name}
-                          className={`p-2 rounded-full ${deleting.company === company.name ? 'bg-gray-200' : 'bg-red-100 hover:bg-red-200'} text-red-600 transition-colors duration-150`}
-                          title="Delete company and all its documents"
-                        >
-                          {deleting.company === company.name ? (
-                            <svg className="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
-                            </svg>
-                          ) : (
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
-                            </svg>
-                          )}
-                        </button>
+                        {!isSelecting && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              deleteCompany(company.name);
+                            }}
+                            disabled={deleting.company === company.name}
+                            className={`p-2 rounded-full ${deleting.company === company.name ? 'bg-gray-200' : 'bg-red-100 hover:bg-red-200'} text-red-600 transition-colors duration-150`}
+                            title="Delete company and all its documents"
+                          >
+                            {deleting.company === company.name ? (
+                              <svg className="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                              </svg>
+                            ) : (
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                              </svg>
+                            )}
+                          </button>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -468,6 +626,14 @@ export default function DashboardPage() {
                         <ul className="mt-2 space-y-3">
                           {Object.entries(company.documents).map(([documentName, metadata]) => (
                             <li key={documentName} className="flex items-start py-3 border-b border-gray-100 last:border-0">
+                              {isSelecting && (
+                                <input
+                                  type="checkbox"
+                                  checked={!!selectedItems[`document:${company.name}:${documentName}`]}
+                                  onChange={() => toggleSelection(`document:${company.name}:${documentName}`)}
+                                  className="h-4 w-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500 mt-1 mr-3"
+                                />
+                              )}
                               <div className="flex-shrink-0 mt-1">
                                 <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
@@ -490,22 +656,24 @@ export default function DashboardPage() {
                                   </div>
                                 </div>
                               </div>
-                              <button
-                                onClick={() => deleteDocument(company.name, documentName)}
-                                disabled={deleting.document === documentName && deleting.company === company.name}
-                                className={`ml-2 p-1.5 rounded-full ${deleting.document === documentName && deleting.company === company.name ? 'bg-gray-200' : 'bg-red-100 hover:bg-red-200'} text-red-600 transition-colors duration-150`}
-                                title="Delete document"
-                              >
-                                {deleting.document === documentName && deleting.company === company.name ? (
-                                  <svg className="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
-                                  </svg>
-                                ) : (
-                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
-                                  </svg>
-                                )}
-                              </button>
+                              {!isSelecting && (
+                                <button
+                                  onClick={() => deleteDocument(company.name, documentName)}
+                                  disabled={deleting.document === documentName && deleting.company === company.name}
+                                  className={`ml-2 p-1.5 rounded-full ${deleting.document === documentName && deleting.company === company.name ? 'bg-gray-200' : 'bg-red-100 hover:bg-red-200'} text-red-600 transition-colors duration-150`}
+                                  title="Delete document"
+                                >
+                                  {deleting.document === documentName && deleting.company === company.name ? (
+                                    <svg className="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                                    </svg>
+                                  ) : (
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                                    </svg>
+                                  )}
+                                </button>
+                              )}
                             </li>
                           ))}
                         </ul>
