@@ -19,6 +19,7 @@ export default function FileManagementPage() {
   const [companies, setCompanies] = useState<Company[]>([]);
   const [isCreatingCompany, setIsCreatingCompany] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [qdrantData, setQdrantData] = useState<Record<string, QdrantCompany>>({});
@@ -31,18 +32,52 @@ export default function FileManagementPage() {
 
   // Fetch companies from API
   useEffect(() => {
-    fetchCompanies();
-  }, []);
+    const loadAllData = async () => {
+      try {
+        // Load companies
+        const companiesResponse = await fetch('/api/companies');
+        const companiesData = await companiesResponse.json();
+        
+        if (companiesData.error) {
+          setError(companiesData.error);
+          setCompanies([]);
+        } else {
+          // Convert company names to uppercase and sort alphabetically
+          const formattedCompanies = (companiesData.companies || []).map((company: Company) => ({
+            ...company,
+            name: company.name.toUpperCase()
+          })).sort((a: Company, b: Company) => a.name.localeCompare(b.name));
+          
+          setCompanies(formattedCompanies);
+        }
+      } catch (error) {
+        console.error('Failed to fetch companies:', error);
+        setError('Failed to load companies');
+        setCompanies([]);
+      }
 
-  // Fetch Qdrant data
-  useEffect(() => {
-    fetchQdrantData();
-  }, []);
+      // Load Qdrant data
+      try {
+        const qdrantResponse = await fetch('http://localhost:5000/api/companies-with-documents');
+        const qdrantData = await qdrantResponse.json();
+        
+        if (qdrantData.success) {
+          // Transform the data into a record for easy lookup
+          const qdrantRecord: Record<string, QdrantCompany> = {};
+          Object.entries(qdrantData.data).forEach(([name, documents]) => {
+            qdrantRecord[name.toUpperCase()] = {
+              name: name.toUpperCase(),
+              documents: documents as Record<string, QdrantDocumentMetadata>
+            };
+          });
+          setQdrantData(qdrantRecord);
+        }
+      } catch (err) {
+        console.error('Error fetching Qdrant data:', err);
+        setError('Failed to load processed document data');
+      }
 
-  // Fetch all processing states once when component mounts
-  useEffect(() => {
-    // Initialize with a single fetch
-    const fetchInitialProcessingStates = async () => {
+      // Load processing states
       try {
         const response = await fetch(`http://localhost:5000/api/document-processing-states?t=${new Date().getTime()}`);
         const allStates = await response.json();
@@ -50,10 +85,22 @@ export default function FileManagementPage() {
       } catch (error) {
         console.error('Failed to fetch initial processing states:', error);
       }
-    };
-    fetchInitialProcessingStates();
 
-    // Set up SSE for real-time updates
+      // Set loading to false after all data is loaded
+      setIsLoading(false);
+      setIsInitialLoad(false);
+    };
+
+    loadAllData();
+  }, []);
+
+  // Set up SSE for real-time updates
+  useEffect(() => {
+    // Don't set up SSE until initial load is complete
+    if (isInitialLoad) {
+      return;
+    }
+
     let eventSource: EventSource | null = null;
 
     const setupEventSource = () => {
@@ -112,11 +159,10 @@ export default function FileManagementPage() {
         eventSource.close();
       }
     };
-  }, []);
+  }, [isInitialLoad]);
 
   const fetchCompanies = async () => {
     try {
-      setIsLoading(true);
       setError(null);
       const response = await fetch('/api/companies');
       const data = await response.json();
@@ -137,8 +183,6 @@ export default function FileManagementPage() {
       console.error('Failed to fetch companies:', error);
       setError('Failed to load companies');
       setCompanies([]);
-    } finally {
-      setIsLoading(false);
     }
   };
 
