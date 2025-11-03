@@ -44,3 +44,7 @@ next-env.d.ts
 /knowledge
 "Postgree/postgresql_18.exe" 
 "*.exe" 
+  
+# OCR cache files  
+/ocr_cache  
+/backend/ocr_cache 

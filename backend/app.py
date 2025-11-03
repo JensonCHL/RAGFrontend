@@ -924,51 +924,23 @@ def delete_company_data(company_name):
     Delete all data for a specific company from Qdrant and its OCR cache.
     """
     try:
-        # First, find all documents associated with the company
-        document_names = []
-        company_filter = Filter(must=[FieldCondition(key="metadata.company", match=MatchValue(value=company_name))])
-        offset = None
-        while True:
-            points, next_offset = qdrant_client.scroll(
-                collection_name=QDRANT_COLLECTION,
-                scroll_filter=company_filter,
-                limit=100,
-                with_payload=["metadata.source"],
-                offset=offset
-            )
-            for point in points:
-                source = point.payload.get("metadata", {}).get("source")
-                if source and source not in document_names:
-                    document_names.append(source)
-            if next_offset is None:
-                break
-            offset = next_offset
-
         # Delete all points for the company from Qdrant
+        company_filter = Filter(must=[FieldCondition(key="metadata.company", match=MatchValue(value=company_name))])
         qdrant_client.delete(
             collection_name=QDRANT_COLLECTION,
             points_selector=company_filter
         )
         print(f"DEBUG: Deleted Qdrant data for company {company_name}")
 
-        # Now, delete all associated OCR cache files
-        for doc_name in document_names:
-            try:
-                cache_path = get_ocr_cache_path(company_name, doc_name)
-                if os.path.exists(cache_path):
-                    os.remove(cache_path)
-                    print(f"DEBUG: Deleted OCR cache file: {cache_path}")
-            except Exception as e:
-                print(f"ERROR: Failed to delete OCR cache file for {doc_name}: {e}")
-        
-        # Finally, delete the empty company cache directory
+        # Now, delete the entire OCR cache directory for the company
         try:
             import re
+            import shutil
             safe_company_id = re.sub(r'[\\/*?:"<>|]', "_", company_name)
             company_cache_dir = os.path.join(OCR_CACHE_DIR, safe_company_id)
-            if os.path.exists(company_cache_dir) and not os.listdir(company_cache_dir):
-                os.rmdir(company_cache_dir)
-                print(f"DEBUG: Deleted empty company cache directory: {company_cache_dir}")
+            if os.path.exists(company_cache_dir):
+                shutil.rmtree(company_cache_dir)
+                print(f"DEBUG: Deleted company cache directory: {company_cache_dir}")
         except Exception as e:
             print(f"ERROR: Failed to delete company cache directory for {company_name}: {e}")
 
