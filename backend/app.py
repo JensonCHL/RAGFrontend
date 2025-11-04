@@ -1520,5 +1520,78 @@ def processing_updates():
     
     return Response(event_stream(), mimetype="text/event-stream")
 
+from manual_indexer import index_company_worker
+
+@app.route('/api/create-index', methods=['POST'])
+def create_index_endpoint():
+    """
+    API endpoint to start a full manual indexing job by launching
+    parallel, thread-safe workers for each company.
+    """
+    data = request.get_json()
+    index_name = data.get('index_name')
+
+    if not index_name:
+        return jsonify({'success': False, 'error': 'Missing index_name'}), 400
+
+    def job_orchestrator():
+        """Discovers companies and launches a worker thread for each."""
+        # Define the central output file
+        output_file_path = os.path.join(project_root, "backend", "indexing_results.json")
+        # Create a shared lock for file access
+        file_lock = threading.RLock()
+
+        # Clear the old results file at the start of a new job
+        if os.path.exists(output_file_path):
+            os.remove(output_file_path)
+
+        def status_callback(message):
+            # Add a timestamp to the message for clearer logging on the server
+            print(f"[INDEXING_STATUS] {message}")
+            notify_processing_update({"type": "indexing_status", "message": message})
+
+        status_callback(f"Job started for index: '{index_name}'. Discovering companies...")
+
+        try:
+            ocr_cache_base_dir = os.path.join(project_root, "backend", "ocr_cache")
+            if not os.path.isdir(ocr_cache_base_dir):
+                status_callback("ERROR: OCR cache directory not found.")
+                return
+
+            company_dirs = [d for d in os.listdir(ocr_cache_base_dir) if os.path.isdir(os.path.join(ocr_cache_base_dir, d))]
+            
+            if not company_dirs:
+                status_callback("INFO: No companies found in OCR cache. Job complete.")
+                return
+
+            status_callback(f"Found {len(company_dirs)} companies. Launching workers...")
+
+            threads = []
+            for company_name in company_dirs:
+                thread = threading.Thread(
+                    target=index_company_worker,
+                    args=(company_name, index_name, output_file_path, file_lock, status_callback)
+                )
+                threads.append(thread)
+                thread.start()
+
+            # Wait for all threads to complete
+            for thread in threads:
+                thread.join()
+            
+            status_callback("SUCCESS: All company workers have finished. Job complete.")
+        except Exception as e:
+            # Broad exception to catch any error during orchestration
+            error_message = f"FATAL_ERROR: The indexing job failed during orchestration. Error: {str(e)}"
+            status_callback(error_message)
+            print(error_message) # Also print to server logs for debugging
+
+    # Run the entire orchestration in a single background thread
+    orchestrator_thread = threading.Thread(target=job_orchestrator)
+    orchestrator_thread.daemon = True
+    orchestrator_thread.start()
+
+    return jsonify({'success': True, 'message': f'Indexing job launched for: {index_name}'}), 202
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True, threaded=True)
