@@ -163,6 +163,20 @@ export default function FileManagementPage() {
   }, [isInitialLoad]);
 
   const handleSelectionChange = (companyId: string, checked: boolean) => {
+    // Check if the company is currently processing
+    const companyProcessingStates = Object.values(processingStates).filter(
+      (state) => state.companyId === companyId
+    );
+    
+    const isAnyDocumentProcessing = companyProcessingStates.some(
+      (state) => state.isProcessing
+    );
+    
+    // Prevent selection if company is processing
+    if (isAnyDocumentProcessing && checked) {
+      return;
+    }
+    
     setSelectedCompanies(prev => {
       if (checked) {
         return [...prev, companyId];
@@ -174,7 +188,20 @@ export default function FileManagementPage() {
 
   const handleSelectAllChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.checked) {
-      setSelectedCompanies(visibleCompanyIds);
+      // Filter out companies that are currently processing
+      const selectableCompanyIds = visibleCompanyIds.filter((companyId: string) => {
+        const companyProcessingStates = Object.values(processingStates).filter(
+          (state) => state.companyId === companyId
+        );
+        
+        const isAnyDocumentProcessing = companyProcessingStates.some(
+          (state) => state.isProcessing
+        );
+        
+        return !isAnyDocumentProcessing;
+      });
+      
+      setSelectedCompanies(selectableCompanyIds);
     } else {
       setSelectedCompanies([]);
     }
@@ -634,7 +661,31 @@ export default function FileManagementPage() {
 
   // Derived state for convenience - MUST be after filteredCompanies is defined
   const visibleCompanyIds = filteredCompanies.map(c => c.id);
-  const isAllSelected = visibleCompanyIds.length > 0 && selectedCompanies.length === visibleCompanyIds.length;
+  
+  // Filter out processing companies from visibleCompanyIds for selection purposes
+  const selectableCompanyIds = visibleCompanyIds.filter((companyId: string) => {
+    const companyProcessingStates = Object.values(processingStates).filter(
+      (state) => state.companyId === companyId
+    );
+    
+    const isAnyDocumentProcessing = companyProcessingStates.some(
+      (state) => state.isProcessing
+    );
+    
+    return !isAnyDocumentProcessing;
+  });
+  
+  const isAllSelected = selectableCompanyIds.length > 0 && selectedCompanies.length === selectableCompanyIds.length;
+  
+  // Check if all visible companies are processing (to disable Select All)
+  const areAllCompaniesProcessing = visibleCompanyIds.length > 0 && 
+    visibleCompanyIds.every((companyId: string) => {
+      const companyProcessingStates = Object.values(processingStates).filter(
+        (state) => state.companyId === companyId
+      );
+      
+      return companyProcessingStates.some((state) => state.isProcessing);
+    });
 
   if (isLoading) {
     return (
@@ -742,11 +793,16 @@ export default function FileManagementPage() {
             <div className="flex items-center">
               <input 
                 type="checkbox"
-                className="h-5 w-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                className={`h-5 w-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500 ${
+                  areAllCompaniesProcessing ? 'opacity-50 cursor-not-allowed' : ''
+                }`}
                 checked={isAllSelected}
                 onChange={handleSelectAllChange}
+                disabled={areAllCompaniesProcessing}
               />
-              <label htmlFor="select-all" className="ml-2 text-sm font-medium text-gray-700">
+              <label htmlFor="select-all" className={`ml-2 text-sm font-medium ${
+                areAllCompaniesProcessing ? 'text-gray-400' : 'text-gray-700'
+              }`}>
                 Select All
               </label>
             </div>
