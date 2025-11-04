@@ -1,26 +1,57 @@
-
-'use client';
-
+'use client'
 import { useState, useEffect } from 'react';
+
+// Define the type for our data rows
+interface ExtractedData {
+  id: number;
+  company_name: string;
+  file_name: string;
+  index_name: string;
+  result: {
+    value: string | number | null;
+    page: number | null;
+  };
+  created_at: string;
+}
 
 export default function IndexingPage() {
   const [indexName, setIndexName] = useState('');
   const [isIndexing, setIsIndexing] = useState(false);
   const [statusMessages, setStatusMessages] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [tableData, setTableData] = useState<ExtractedData[]>([]);
+
+  // Function to fetch data from the database
+  const fetchData = async () => {
+    try {
+      const response = await fetch('http://localhost:5000/api/get-all-data');
+      const result = await response.json();
+      if (result.success) {
+        setTableData(result.data);
+      } else {
+        console.error('Failed to fetch data:', result.error);
+      }
+    } catch (err) {
+      console.error('Error fetching data:', err);
+    }
+  };
 
   // Effect to listen for Server-Sent Events (SSE)
   useEffect(() => {
+    // Fetch initial data on mount
+    fetchData();
+
     const eventSource = new EventSource('http://localhost:5000/events/processing-updates');
 
     eventSource.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
-        // We only care about indexing status messages on this page
         if (data.type === 'indexing_status') {
           setStatusMessages(prev => [...prev, data.message]);
-          if (data.message.startsWith('Job complete') || data.message.startsWith('Job failed')) {
+          if (data.message.includes('Job complete') || data.message.includes('Job failed')) {
             setIsIndexing(false);
+            // Refresh data after job is complete
+            fetchData();
           }
         }
       } catch (error) {
@@ -34,7 +65,6 @@ export default function IndexingPage() {
       eventSource.close();
     };
 
-    // Cleanup on component unmount
     return () => {
       eventSource.close();
     };
@@ -76,7 +106,7 @@ export default function IndexingPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 p-8">
-      <div className="max-w-3xl mx-auto bg-white rounded-lg shadow-md p-8">
+      <div className="max-w-7xl mx-auto bg-white rounded-lg shadow-md p-8">
         <header className="border-b border-gray-200 pb-4 mb-6">
           <h1 className="text-2xl font-bold text-gray-900">Create New Index</h1>
           <p className="text-sm text-gray-600 mt-1">
@@ -120,6 +150,41 @@ export default function IndexingPage() {
               </div>
             </div>
           )}
+        </div>
+      </div>
+
+      {/* Data Table for Debugging */}
+      <div className="max-w-7xl mx-auto bg-white rounded-lg shadow-md p-8 mt-8">
+        <h2 className="text-xl font-bold text-gray-900 mb-4">Database Content</h2>
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Company</th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">File Name</th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Index Name</th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Value</th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Page</th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {tableData.length > 0 ? (
+                tableData.map((row) => (
+                  <tr key={row.id}>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{row.company_name}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{row.file_name}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-800 font-medium">{row.index_name}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-800 font-medium">{String(row.result?.value)}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{row.result?.page}</td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={5} className="px-6 py-4 text-center text-sm text-gray-500">No data in database yet.</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
         </div>
       </div>
     </div>

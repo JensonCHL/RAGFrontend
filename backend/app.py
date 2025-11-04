@@ -1593,5 +1593,40 @@ def create_index_endpoint():
 
     return jsonify({'success': True, 'message': f'Indexing job launched for: {index_name}'}), 202
 
+from db_utils import get_db_connection
+
+@app.route('/api/get-all-data', methods=['GET'])
+def get_all_data():
+    """Fetches all records from the extracted_data table for debugging."""
+    conn = get_db_connection()
+    if not conn:
+        return jsonify({'success': False, 'error': 'Database connection failed'}), 500
+
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT id, company_name, file_name, index_name, result, created_at FROM extracted_data ORDER BY created_at DESC;")
+            rows = cur.fetchall()
+            
+            # Get column names from the cursor description
+            column_names = [desc[0] for desc in cur.description]
+            
+            # Convert rows to a list of dictionaries
+            data = [dict(zip(column_names, row)) for row in rows]
+
+            # Convert datetime objects to ISO format strings
+            for row in data:
+                if 'created_at' in row and hasattr(row['created_at'], 'isoformat'):
+                    row['created_at'] = row['created_at'].isoformat()
+
+            return jsonify({'success': True, 'data': data})
+    except Exception as e:
+        print(f"[DB_ERROR] Failed to fetch data: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+    finally:
+        if conn:
+            conn.close()
+
+# --- Existing SSE and other routes ---
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True, threaded=True)
