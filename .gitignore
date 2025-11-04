@@ -48,6 +48,8 @@ next-env.d.ts
 # OCR cache files  
 /ocr_cache  
 /backend/ocr_cache 
+/backend/processing_logs 
 backend/dynamic_model_notes.txt
 backend/indexing_results.json
 alternative_schema_ideas.txt
+src/app/file-management/page.tsx

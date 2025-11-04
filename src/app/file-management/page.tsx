@@ -29,6 +29,7 @@ export default function FileManagementPage() {
   const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [processingStates, setProcessingStates] = useState<Record<string, ProcessingState>>({});
+  const [selectedCompanies, setSelectedCompanies] = useState<string[]>([]);
 
   // Fetch companies from API
   useEffect(() => {
@@ -160,6 +161,76 @@ export default function FileManagementPage() {
       }
     };
   }, [isInitialLoad]);
+
+  const handleSelectionChange = (companyId: string, checked: boolean) => {
+    setSelectedCompanies(prev => {
+      if (checked) {
+        return [...prev, companyId];
+      } else {
+        return prev.filter(id => id !== companyId);
+      }
+    });
+  };
+
+  const handleSelectAllChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.checked) {
+      setSelectedCompanies(visibleCompanyIds);
+    } else {
+      setSelectedCompanies([]);
+    }
+  };
+
+  const handleProcessSelected = async () => {
+    setError(null);
+    const jobs = selectedCompanies.map(companyId => {
+      const company = companies.find(c => c.id === companyId);
+      if (!company) return null;
+
+      const qdrantCompanyData = qdrantData[company.name];
+      const syncedDocs = qdrantCompanyData ? Object.keys(qdrantCompanyData.documents) : [];
+      const unsyncedFiles = company.contracts
+        .filter(contract => !syncedDocs.includes(contract.name))
+        .map(doc => doc.name);
+
+      if (unsyncedFiles.length > 0) {
+        return {
+          company_id: companyId,
+          files: unsyncedFiles
+        };
+      }
+      return null;
+    }).filter((job): job is { company_id: string; files: string[] } => job !== null);
+
+    if (jobs.length === 0) {
+      setError('No unsynced documents found for the selected companies.');
+      return;
+    }
+
+    // Call the API for each job in parallel
+    try {
+      await Promise.all(jobs.map(job => 
+        fetch('http://localhost:5000/api/process-documents', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          // The backend expects a single job object, not an array
+          body: JSON.stringify(job) 
+        })
+        .then(response => {
+          if (!response.ok) {
+            console.error(`Failed to start processing for ${job.company_id}`);
+          }
+        })
+      ));
+      
+      // Deselect all after starting the jobs
+      setSelectedCompanies([]);
+    } catch (error) {
+      console.error('Error dispatching batch processing jobs:', error);
+      setError('An error occurred while starting the processing jobs.');
+    }
+  };
 
   const fetchCompanies = async () => {
     try {
@@ -561,6 +632,10 @@ export default function FileManagementPage() {
     );
   });
 
+  // Derived state for convenience - MUST be after filteredCompanies is defined
+  const visibleCompanyIds = filteredCompanies.map(c => c.id);
+  const isAllSelected = visibleCompanyIds.length > 0 && selectedCompanies.length === visibleCompanyIds.length;
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gray-50 p-8">
@@ -638,18 +713,17 @@ export default function FileManagementPage() {
           <div className="flex justify-between items-center">
             <h2 className="text-xl font-semibold text-gray-800 flex items-center">
               Companies ({filteredCompanies.length})
-              {loadingQdrant && (
-                <LoadingSpinner size="small" color="#2563eb" className="ml-2" />
-              )}
             </h2>
-            {!isCreatingCompany ? (
-              <button
-                onClick={() => setIsCreatingCompany(true)}
-                className="py-2 px-4 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition duration-150 ease-in-out"
-              >
-                + Create New Company
-              </button>
-            ) : null}
+            <div className="flex items-center space-x-4">
+              {!isCreatingCompany && (
+                <button
+                  onClick={() => setIsCreatingCompany(true)}
+                  className="py-2 px-4 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition duration-150 ease-in-out"
+                >
+                  + Create New Company
+                </button>
+              )}
+            </div>
           </div>
         </div>
 
@@ -659,6 +733,31 @@ export default function FileManagementPage() {
               onCreateCompany={handleCreateCompany} 
               onCancel={() => setIsCreatingCompany(false)} 
             />
+          </div>
+        )}
+        
+        {/* Selection Controls */}
+        {filteredCompanies.length > 0 && (
+          <div className="flex justify-between items-center bg-gray-50 p-3 rounded-lg mb-4">
+            <div className="flex items-center">
+              <input 
+                type="checkbox"
+                className="h-5 w-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                checked={isAllSelected}
+                onChange={handleSelectAllChange}
+              />
+              <label htmlFor="select-all" className="ml-2 text-sm font-medium text-gray-700">
+                Select All
+              </label>
+            </div>
+            {selectedCompanies.length > 0 && (
+              <button
+                onClick={handleProcessSelected}
+                className="py-2 px-4 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition duration-150 ease-in-out"
+              >
+                Process Unsynced for Selected ({selectedCompanies.length})
+              </button>
+            )}
           </div>
         )}
 
@@ -676,7 +775,9 @@ export default function FileManagementPage() {
                 onAddContracts={handleAddContracts}
                 onProcessUnsynced={handleProcessUnsyncedDocuments}
                 onOpenModal={openCompanyModal}
-                allProcessingStates={processingStates} // Pass all processing states
+                allProcessingStates={processingStates}
+                isSelected={selectedCompanies.includes(company.id)}
+                onSelectionChange={handleSelectionChange}
               />
             ))}
           </div>

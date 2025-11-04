@@ -64,7 +64,9 @@ interface CompanyCardProps {
   onAddContracts: (companyId: string, files: File[]) => void;
   onProcessUnsynced: (companyId: string) => void;
   onOpenModal: (company: Company) => void;
-  allProcessingStates: Record<string, ProcessingState>; // Changed to receive all states
+  allProcessingStates: Record<string, ProcessingState>;
+  isSelected: boolean;
+  onSelectionChange: (companyId: string, checked: boolean) => void;
 }
 
 export default function CompanyCard({
@@ -75,7 +77,9 @@ export default function CompanyCard({
   onAddContracts,
   onProcessUnsynced,
   onOpenModal,
-  allProcessingStates
+  allProcessingStates,
+  isSelected,
+  onSelectionChange
 }: CompanyCardProps) {
   const [isDragging, setIsDragging] = useState(false);
 
@@ -135,7 +139,7 @@ export default function CompanyCard({
     e.preventDefault();
     e.stopPropagation();
     setIsDragging(false);
-    
+
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
       const files = Array.from(e.dataTransfer.files);
       onAddContracts(company.id, files);
@@ -162,13 +166,13 @@ export default function CompanyCard({
         hasUnsynced: company.contracts.length > 0
       };
     }
-    
+
     const syncedDocs = Object.keys(qdrantData.documents);
     const totalDocs = company.contracts.length;
-    const syncedCount = company.contracts.filter(contract => 
+    const syncedCount = company.contracts.filter(contract =>
       syncedDocs.includes(contract.name)
     ).length;
-    
+
     return {
       syncedCount,
       totalCount: totalDocs,
@@ -182,30 +186,45 @@ export default function CompanyCard({
   return (
     <div className="bg-white rounded-lg shadow overflow-hidden">
       {/* Company Header - Windows File Manager Style */}
-      <div 
-        className="p-4 border-b border-gray-200 cursor-pointer hover:bg-gray-50"
-        onClick={(e) => {
-          e.stopPropagation();
-          onOpenModal(company);
-        }}
+      <div
+        className="p-4 border-b border-gray-200 hover:bg-gray-50"
+        // onClick={(e) => {
+        //   e.stopPropagation();
+        //   onOpenModal(company);
+        // }}
         onDragEnter={handleDragEnter}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
       >
         <div className="flex items-start w-full flex-nowrap">
-          <div className="flex-shrink-0 w-10 h-10 bg-blue-100 rounded-md flex items-center justify-center">
-            <svg 
-              className="w-6 h-6 text-blue-600" 
-              fill="none" 
-              stroke="currentColor" 
-              viewBox="0 0 24 24" 
+          <input
+            type="checkbox"
+            className={`mt-1 h-5 w-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500 ${
+              isAnyDocumentProcessing ? 'opacity-50 cursor-not-allowed' : ''
+            }`}
+            checked={isSelected}
+            onChange={(e) => onSelectionChange(company.id, e.target.checked)}
+            disabled={isAnyDocumentProcessing}
+          />
+          <div className="flex-shrink-0 w-10 h-10 bg-blue-100 rounded-md flex items-center justify-center ml-3">
+
+            <svg
+              className="w-6 h-6 text-blue-600 cursor-pointer"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
               xmlns="http://www.w3.org/2000/svg"
+              
+              onClick={(e) => {
+                e.stopPropagation();
+                onOpenModal(company);
+              }}
             >
-              <path 
-                strokeLinecap="round" 
-                strokeLinejoin="round" 
-                strokeWidth="2" 
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="2"
                 d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"
               ></path>
             </svg>
@@ -267,17 +286,17 @@ export default function CompanyCard({
                   className="p-1 text-blue-600 hover:text-blue-800"
                   title="Process unsynced documents"
                 >
-                  <svg 
-                    className="w-4 h-4" 
-                    fill="none" 
-                    stroke="currentColor" 
-                    viewBox="0 0 24 24" 
+                  <svg
+                    className="w-4 h-4"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
                     xmlns="http://www.w3.org/2000/svg"
                   >
-                    <path 
-                      strokeLinecap="round" 
-                      strokeLinejoin="round" 
-                      strokeWidth="2" 
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth="2"
                       d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
                     ></path>
                   </svg>
@@ -299,17 +318,17 @@ export default function CompanyCard({
               }}
               className="ml-2 p-1 text-gray-400 hover:text-red-500"
             >
-              <svg 
-                className="w-4 h-4" 
-                fill="none" 
-                stroke="currentColor" 
-                viewBox="0 0 24 24" 
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
                 xmlns="http://www.w3.org/2000/svg"
               >
-                <path 
-                  strokeLinecap="round" 
-                  strokeLinejoin="round" 
-                  strokeWidth="2" 
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2"
                   d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
                 ></path>
               </svg>
@@ -319,7 +338,7 @@ export default function CompanyCard({
       </div>
 
       {/* Contracts Grid - Windows File Manager Style */}
-      <div 
+      <div
         className={`p-3 ${isDragging ? 'bg-blue-50 border-2 border-dashed border-blue-300 rounded' : ''}`}
         onDragEnter={handleDragEnter}
         onDragOver={handleDragOver}
@@ -335,42 +354,42 @@ export default function CompanyCard({
               );
 
               return (
-                <div 
-                  key={contract.name} 
+                <div
+                  key={contract.name}
                   className="group relative p-2 rounded hover:bg-gray-100"
                 >
                   <div className="flex flex-col items-center">
                     <div className="w-12 h-12 flex items-center justify-center">
                       {contract.name.toLowerCase().endsWith('.pdf') ? (
                         <div className="w-8 h-10 bg-red-100 rounded flex items-center justify-center">
-                          <svg 
-                            className="w-4 h-4 text-red-600" 
-                            fill="none" 
-                            stroke="currentColor" 
-                            viewBox="0 0 24 24" 
+                          <svg
+                            className="w-4 h-4 text-red-600"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
                             xmlns="http://www.w3.org/2000/svg"
                           >
-                            <path 
-                              strokeLinecap="round" 
-                              strokeLinejoin="round" 
-                              strokeWidth="2" 
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth="2"
                               d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
                             ></path>
                           </svg>
                         </div>
                       ) : (
                         <div className="w-8 h-10 bg-gray-100 rounded flex items-center justify-center">
-                          <svg 
-                            className="w-4 h-4 text-gray-600" 
-                            fill="none" 
-                            stroke="currentColor" 
-                            viewBox="0 0 24 24" 
+                          <svg
+                            className="w-4 h-4 text-gray-600"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
                             xmlns="http://www.w3.org/2000/svg"
                           >
-                            <path 
-                              strokeLinecap="round" 
-                              strokeLinejoin="round" 
-                              strokeWidth="2" 
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth="2"
                               d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
                             ></path>
                           </svg>
@@ -393,7 +412,7 @@ export default function CompanyCard({
                       <div className="absolute top-0 right-0 w-3 h-3 bg-green-500 rounded-full" title="Processed"></div>
                     ) : null}
                   </div>
-                  
+
                   {/* Delete button on hover */}
                   <button
                     onClick={(e) => {
@@ -402,17 +421,17 @@ export default function CompanyCard({
                     }}
                     className="absolute top-0 left-0 p-1 text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
                   >
-                    <svg 
-                      className="w-3 h-3" 
-                      fill="none" 
-                      stroke="currentColor" 
-                      viewBox="0 0 24 24" 
+                    <svg
+                      className="w-3 h-3"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
                       xmlns="http://www.w3.org/2000/svg"
                     >
-                      <path 
-                        strokeLinecap="round" 
-                        strokeLinejoin="round" 
-                        strokeWidth="2" 
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth="2"
                         d="M6 18L18 6M6 6l12 12"
                       ></path>
                     </svg>
@@ -423,24 +442,24 @@ export default function CompanyCard({
           </div>
         ) : (
           <div className="text-center py-6">
-            <svg 
-              className="mx-auto h-8 w-8 text-gray-400" 
-              fill="none" 
-              stroke="currentColor" 
-              viewBox="0 0 24 24" 
+            <svg
+              className="mx-auto h-8 w-8 text-gray-400"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
               xmlns="http://www.w3.org/2000/svg"
             >
-              <path 
-                strokeLinecap="round" 
-                strokeLinejoin="round" 
-                strokeWidth="2" 
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="2"
                 d="M9 13h6m-3-3v6m-9 1V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z"
               ></path>
             </svg>
             <p className="mt-2 text-sm text-gray-500">No files in this folder</p>
           </div>
         )}
-        
+
         {/* Hidden file input for drag and drop */}
         <input
           id={`file-input-${company.id}`}
