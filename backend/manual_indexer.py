@@ -68,10 +68,12 @@ def _call_llm_for_extraction(page_text: str, index_name: str) -> str | None:
         print(f"      - ERROR: LLM API call failed. Error: {e}")
         return None
 
+from db_utils import get_db_connection, create_table_if_not_exists, insert_extracted_data
+
 def index_company_worker(company_name: str, index_name: str, output_file_path: str, lock, status_callback=None):
     """
     A thread-safe worker function that processes all documents for a single company
-    and safely updates a central results file.
+    and saves the results directly to the PostgreSQL database.
     """
     if status_callback:
         status_callback(f"START: Worker for company: {company_name}")
@@ -99,7 +101,7 @@ def index_company_worker(company_name: str, index_name: str, output_file_path: s
                     ocr_pages = json.load(f)
             except Exception as e:
                 status_callback(f"  - WARNING: Could not read or parse JSON file {doc_filename} for {company_name}. Skipping. Error: {e}")
-                company_results[doc_filename] = {"value": None, "page": None}
+                company_results[doc_filename] = None
                 continue
 
             extracted_value = None
@@ -119,27 +121,24 @@ def index_company_worker(company_name: str, index_name: str, output_file_path: s
             if extracted_value is None:
                 status_callback(f"  - INFO: Index '{index_name}' not found in any page for {doc_filename}.")
 
+            # We store the index_name in the result object itself for easier processing in the db_utils
             company_results[doc_filename] = {
                 "value": extracted_value,
-                "page": found_on_page
+                "page": found_on_page,
+                "index_name": index_name
             }
 
-        # Thread-safe write to the central results file
-        with lock:
-            all_results = {}
-            if os.path.exists(output_file_path):
-                with open(output_file_path, 'r', encoding='utf-8') as f:
-                    try:
-                        all_results = json.load(f)
-                    except json.JSONDecodeError:
-                        pass
-            
-            if index_name not in all_results:
-                all_results[index_name] = {}
-            all_results[index_name][company_name] = company_results
-            
-            with open(output_file_path, 'w', encoding='utf-8') as f:
-                json.dump(all_results, f, indent=2)
+        # --- Database Insertion Step ---
+        conn = get_db_connection()
+        if conn:
+            try:
+                # Ensure the table exists
+                create_table_if_not_exists(conn)
+                # Insert the data
+                insert_extracted_data(conn, company_name, company_results)
+            finally:
+                conn.close()
+                print(f"[DB_INFO] Database connection closed for {company_name}.")
 
     except Exception as e:
         if status_callback:

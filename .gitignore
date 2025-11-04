@@ -50,3 +50,4 @@ next-env.d.ts
 /backend/ocr_cache 
 backend/dynamic_model_notes.txt
 backend/indexing_results.json
+alternative_schema_ideas.txt
