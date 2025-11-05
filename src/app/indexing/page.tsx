@@ -14,12 +14,24 @@ interface ExtractedData {
   created_at: string;
 }
 
+// Type for grouped data
+type GroupedData = {
+  [indexName: string]: ExtractedData[];
+};
+
+// Type for managing open/closed state of accordions
+type AccordionState = {
+  [indexName: string]: boolean;
+};
+
 export default function IndexingPage() {
   const [indexName, setIndexName] = useState('');
   const [isIndexing, setIsIndexing] = useState(false);
   const [statusMessages, setStatusMessages] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [tableData, setTableData] = useState<ExtractedData[]>([]);
+  const [groupedData, setGroupedData] = useState<GroupedData>({});
+  const [openAccordions, setOpenAccordions] = useState<AccordionState>({});
 
   // Function to fetch data from the database
   const fetchData = async () => {
@@ -28,6 +40,16 @@ export default function IndexingPage() {
       const result = await response.json();
       if (result.success) {
         setTableData(result.data);
+        // Group data after fetching
+        const grouped = result.data.reduce((acc: GroupedData, item: ExtractedData) => {
+          const key = item.index_name;
+          if (!acc[key]) {
+            acc[key] = [];
+          }
+          acc[key].push(item);
+          return acc;
+        }, {});
+        setGroupedData(grouped);
       } else {
         console.error('Failed to fetch data:', result.error);
       }
@@ -104,6 +126,10 @@ export default function IndexingPage() {
     }
   };
 
+  const toggleAccordion = (key: string) => {
+    setOpenAccordions(prev => ({ ...prev, [key]: !prev[key] }));
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 p-8">
       <div className="max-w-7xl mx-auto bg-white rounded-lg shadow-md p-8">
@@ -156,35 +182,48 @@ export default function IndexingPage() {
       {/* Data Table for Debugging */}
       <div className="max-w-7xl mx-auto bg-white rounded-lg shadow-md p-8 mt-8">
         <h2 className="text-xl font-bold text-gray-900 mb-4">Database Content</h2>
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Company</th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">File Name</th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Index Name</th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Value</th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Page</th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {tableData.length > 0 ? (
-                tableData.map((row) => (
-                  <tr key={row.id}>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{row.company_name}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{row.file_name}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-800 font-medium">{row.index_name}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-800 font-medium">{String(row.result?.value)}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{row.result?.page}</td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan={5} className="px-6 py-4 text-center text-sm text-gray-500">No data in database yet.</td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+        <div className="space-y-4">
+          {Object.keys(groupedData).length > 0 ? (
+            Object.keys(groupedData).map((indexKey) => (
+              <div key={indexKey} className="border border-gray-200 rounded-lg">
+                <button
+                  onClick={() => toggleAccordion(indexKey)}
+                  className="w-full flex justify-between items-center p-4 bg-gray-50 hover:bg-gray-100 focus:outline-none"
+                >
+                  <h3 className="text-lg font-medium text-gray-800">{indexKey}</h3>
+                  <span className={`transform transition-transform ${openAccordions[indexKey] ? 'rotate-180' : ''}`}>
+                    <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+                  </span>
+                </button>
+                {openAccordions[indexKey] && (
+                  <div className="overflow-x-auto p-4">
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Company</th>
+                          <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">File Name</th>
+                          <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Value</th>
+                          <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Page</th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white divide-y divide-gray-200">
+                        {groupedData[indexKey].map((row) => (
+                          <tr key={row.id}>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{row.company_name}</td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{row.file_name}</td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-800 font-medium">{String(row.result?.value ?? 'N/A')}</td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{row.result?.page ?? 'N/A'}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            ))
+          ) : (
+            <p className="text-center text-gray-500">No data in database yet.</p>
+          )}
         </div>
       </div>
     </div>

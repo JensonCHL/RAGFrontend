@@ -1321,6 +1321,48 @@ def process_documents():
                         "message": f"Completed processing for {file_name}",
                         "progress": int(((file_idx + 1) / len(files)) * 100)
                     }) + "\n"
+                    
+                    # Step 4 here for manual indexing?
+                    from manual_indexer import index_single_document
+                    from db_utils import get_db_connection
+
+                    yield json.dumps({
+                        "status": "step_started",
+                        "step": "structured_indexing",
+                        "currentFile": file_name,
+                        "message": f"Starting automatic structured indexing for {file_name}"
+                    }) + "\n"
+
+                    db_conn = get_db_connection()
+                    if not db_conn:
+                        print(f"[DB_ERROR] Could not connect to DB for structured indexing of {file_name}.")
+                        continue # Go to the next file in the list
+
+                    try:
+                        with db_conn.cursor() as cur:
+                            cur.execute("SELECT DISTINCT index_name FROM extracted_data ORDER BY index_name;")
+                            existing_index_names = [row[0] for row in cur.fetchall()]
+                    except Exception as e:
+                        print(f"[DB_ERROR] Failed to fetch existing index names: {e}")
+                        existing_index_names = []
+                    finally:
+                        db_conn.close()
+
+                    if existing_index_names:
+                        print(f"DEBUG: Found {len(existing_index_names)} existing indexes. Back-filling for {file_name}.")
+                        for index_name in existing_index_names:
+                            # This function is in manual_indexer.py and handles its own logic
+                            index_single_document(company_id, file_name, index_name, status_callback=lambda msg_data: notify_processing_update(msg_data) if isinstance(msg_data, dict) else notify_processing_update({'type': 'indexing_status', 'message': msg_data}))
+                    else:
+                        print(f"INFO: No existing structured indexes to process for {file_name}.")
+
+                    yield json.dumps({
+                        "status": "step_completed",
+                        "step": "structured_indexing",
+                        "currentFile": file_name,
+                        "message": f"Completed automatic structured indexing for {file_name}"
+                    }) + "\n"
+                        
                 
                 with processing_lock:
                     processing_states = load_processing_states(company_id)
@@ -1436,7 +1478,7 @@ def process_documents():
             'success': False,
             'error': f'Failed to start processing: {str(e)}'
         }), 500
-
+        
 
 @app.route('/api/document-processing-states', methods=['GET'])
 def get_document_processing_states():
@@ -1522,12 +1564,26 @@ def processing_updates():
 
 from manual_indexer import index_company_worker
 
+# Load the N8N API Key from environment variables
+N8N_API_KEY = os.getenv("N8N_API_KEY")
+
 @app.route('/api/create-index', methods=['POST'])
 def create_index_endpoint():
     """
-    API endpoint to start a full manual indexing job by launching
-    parallel, thread-safe workers for each company.
+    API endpoint to start a full manual indexing job, protected by an API key.
+    Expects 'Authorization: Bearer <YOUR_API_KEY>' in the header.
     """
+    # API Key Authentication
+    if N8N_API_KEY:
+        auth_header = request.headers.get('Authorization')
+        if not auth_header or not auth_header.startswith('Bearer '):
+            return jsonify({'success': False, 'error': 'Authorization header is missing or invalid'}), 401
+        
+        token = auth_header.split(' ')[1]
+        if token != N8N_API_KEY:
+            return jsonify({'success': False, 'error': 'Invalid API Key'}), 401
+
+    # --- Original logic continues if authentication is successful ---
     data = request.get_json()
     index_name = data.get('index_name')
 
@@ -1621,6 +1677,28 @@ def get_all_data():
             return jsonify({'success': True, 'data': data})
     except Exception as e:
         print(f"[DB_ERROR] Failed to fetch data: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+    finally:
+        if conn:
+            conn.close()
+
+@app.route('/api/list-indexes', methods=['GET'])
+def list_indexes():
+    """
+    API endpoint to list all unique index names present in the extracted_data table.
+    No authentication required.
+    """
+    conn = get_db_connection()
+    if not conn:
+        return jsonify({'success': False, 'error': 'Database connection failed'}), 500
+
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT DISTINCT index_name FROM extracted_data ORDER BY index_name;")
+            index_names = [row[0] for row in cur.fetchall()]
+            return jsonify({'index_names': index_names})
+    except Exception as e:
+        print(f"[DB_ERROR] Failed to fetch index names: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
     finally:
         if conn:

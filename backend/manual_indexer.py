@@ -70,6 +70,72 @@ def _call_llm_for_extraction(page_text: str, index_name: str) -> str | None:
 
 from db_utils import get_db_connection, create_table_if_not_exists, insert_extracted_data
 
+def index_single_document(company_name: str, file_name: str, index_name: str, status_callback=None):
+    """
+    Processes a single document for a single index and saves the result to the database.
+    """
+    if status_callback:
+        status_callback(f"  - Starting structured index '{index_name}' for {file_name}")
+
+    try:
+        # 1. Read the OCR cache for the specific document
+        project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        cache_path = os.path.join(project_root, "backend", "ocr_cache", company_name, f"{file_name}.json")
+        
+        ocr_pages = []
+        if os.path.exists(cache_path):
+            with open(cache_path, 'r', encoding='utf-8') as f:
+                ocr_pages = json.load(f)
+        else:
+            if status_callback:
+                status_callback(f"  - WARNING: OCR cache not found for {file_name}. Skipping structured index.")
+            return
+
+        # 2. Loop through pages and call LLM for extraction
+        extracted_value = None
+        found_on_page = None
+        for page_data in ocr_pages:
+            page_text = page_data.get("text", "")
+            current_page = page_data.get("page")
+
+            llm_response = _call_llm_for_extraction(page_text, index_name)
+
+            if llm_response is not None:
+                if status_callback:
+                    status_callback(f"    - SUCCESS: Found '{index_name}' on page {current_page} of {file_name}.")
+                extracted_value = llm_response
+                found_on_page = current_page
+                break # Early stopping
+
+        if extracted_value is None and status_callback:
+            status_callback(f"    - INFO: Index '{index_name}' not found in {file_name}.")
+
+        # 3. Prepare data and insert into the database
+        from db_utils import get_db_connection, insert_extracted_data
+        
+        result_data = {
+            "value": extracted_value,
+            "page": found_on_page,
+            "index_name": index_name
+        }
+        
+        company_results_for_db = {
+            file_name: result_data
+        }
+
+        conn = get_db_connection()
+        if conn:
+            try:
+                insert_extracted_data(conn, company_name, company_results_for_db)
+            finally:
+                conn.close()
+
+    except Exception as e:
+        error_message = f"  - ERROR: Failed during structured indexing for {file_name}. Error: {e}"
+        if status_callback:
+            status_callback(error_message)
+        print(error_message)
+
 def index_company_worker(company_name: str, index_name: str, output_file_path: str, lock, status_callback=None):
     """
     A thread-safe worker function that processes all documents for a single company

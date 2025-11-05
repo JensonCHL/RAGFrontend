@@ -207,7 +207,7 @@ export default function CompanyCard({
             onChange={(e) => onSelectionChange(company.id, e.target.checked)}
             disabled={isAnyDocumentProcessing}
           />
-          <div className="flex-shrink-0 w-10 h-10 bg-blue-100 rounded-md flex items-center justify-center ml-3">
+          <div className="shrink-0 w-10 h-10 bg-blue-100 rounded-md flex items-center justify-center ml-3">
 
             <svg
               className="w-6 h-6 text-blue-600 cursor-pointer"
