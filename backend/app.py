@@ -1704,6 +1704,31 @@ def list_indexes():
         if conn:
             conn.close()
 
+@app.route('/api/index/<string:index_name>', methods=['DELETE'])
+def delete_index(index_name):
+    """
+    Deletes all data associated with a specific index_name from the database.
+    (Authentication temporarily removed for testing/debugging purposes)
+    """
+    conn = get_db_connection()
+    if not conn:
+        return jsonify({'success': False, 'error': 'Database connection failed'}), 500
+
+    try:
+        with conn.cursor() as cur:
+            cur.execute("DELETE FROM extracted_data WHERE index_name = %s;", (index_name,))
+            conn.commit()
+            deleted_count = cur.rowcount
+            print(f"[DB_INFO] Deleted {deleted_count} rows for index_name: {index_name}")
+            return jsonify({'success': True, 'message': f'Successfully deleted {deleted_count} records for index \'{index_name}\''})
+    except Exception as e:
+        conn.rollback()
+        print(f"[DB_ERROR] Failed to delete index data: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+    finally:
+        if conn:
+            conn.close()
+
 # --- Existing SSE and other routes ---
 
 if __name__ == '__main__':

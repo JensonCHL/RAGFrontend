@@ -26,6 +26,7 @@ type AccordionState = {
 
 export default function IndexingPage() {
   const [indexName, setIndexName] = useState('');
+  const [apiKey, setApiKey] = useState(''); // State for API Key
   const [isIndexing, setIsIndexing] = useState(false);
   const [statusMessages, setStatusMessages] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -52,9 +53,11 @@ export default function IndexingPage() {
         setGroupedData(grouped);
       } else {
         console.error('Failed to fetch data:', result.error);
+        setError(`Failed to fetch data: ${result.error}`)
       }
     } catch (err) {
       console.error('Error fetching data:', err);
+      setError('Error fetching data. Is the backend server running?')
     }
   };
 
@@ -97,6 +100,10 @@ export default function IndexingPage() {
       setError('Index name cannot be empty.');
       return;
     }
+    if (!apiKey.trim()) {
+      setError('API Key cannot be empty to start an indexing job.');
+      return;
+    }
 
     setIsIndexing(true);
     setStatusMessages([]);
@@ -107,6 +114,7 @@ export default function IndexingPage() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`,
         },
         body: JSON.stringify({ index_name: indexName }),
       });
@@ -126,6 +134,33 @@ export default function IndexingPage() {
     }
   };
 
+  const handleDeleteIndex = async (indexToDelete: string) => {
+    if (!window.confirm(`Are you sure you want to delete all data for the index "${indexToDelete}"? This action cannot be undone.`)) {
+      return;
+    }
+
+    setError(null);
+
+    try {
+      const response = await fetch(`http://localhost:5000/api/index/${indexToDelete}` , {
+        method: 'DELETE',
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to delete index.');
+      }
+
+      alert(data.message); // Show success message
+      fetchData(); // Refresh the data
+
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred.';
+      setError(errorMessage);
+    }
+  };
+
   const toggleAccordion = (key: string) => {
     setOpenAccordions(prev => ({ ...prev, [key]: !prev[key] }));
   };
@@ -134,16 +169,18 @@ export default function IndexingPage() {
     <div className="min-h-screen bg-gray-50 p-8">
       <div className="max-w-7xl mx-auto bg-white rounded-lg shadow-md p-8">
         <header className="border-b border-gray-200 pb-4 mb-6">
-          <h1 className="text-2xl font-bold text-gray-900">Create New Index</h1>
+          <h1 className="text-2xl font-bold text-gray-900">Manage Indexes</h1>
           <p className="text-sm text-gray-600 mt-1">
-            Run a job to extract a new piece of information from all documents.
+            Create a new index or delete an existing one.
           </p>
         </header>
 
         <div className="space-y-6">
+
+          {/* Create Index Section */}
           <div>
             <label htmlFor="indexName" className="block text-sm font-medium text-gray-700">
-              Index Name
+              Create New Index
             </label>
             <div className="mt-1 flex rounded-md shadow-sm">
               <input
@@ -186,15 +223,23 @@ export default function IndexingPage() {
           {Object.keys(groupedData).length > 0 ? (
             Object.keys(groupedData).map((indexKey) => (
               <div key={indexKey} className="border border-gray-200 rounded-lg">
-                <button
-                  onClick={() => toggleAccordion(indexKey)}
-                  className="w-full flex justify-between items-center p-4 bg-gray-50 hover:bg-gray-100 focus:outline-none"
-                >
-                  <h3 className="text-lg font-medium text-gray-800">{indexKey}</h3>
-                  <span className={`transform transition-transform ${openAccordions[indexKey] ? 'rotate-180' : ''}`}>
-                    <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
-                  </span>
-                </button>
+                <div className="w-full flex justify-between items-center p-4 bg-gray-50">
+                  <button
+                    onClick={() => toggleAccordion(indexKey)}
+                    className="flex-1 flex items-center text-left focus:outline-none"
+                  >
+                    <h3 className="text-lg font-medium text-gray-800">{indexKey}</h3>
+                    <span className={`ml-4 transform transition-transform ${openAccordions[indexKey] ? 'rotate-180' : ''}`}>
+                      <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+                    </span>
+                  </button>
+                  <button 
+                    onClick={() => handleDeleteIndex(indexKey)}
+                    className="ml-4 px-3 py-1 border border-transparent text-sm font-medium rounded-md text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+                  >
+                    Delete
+                  </button>
+                </div>
                 {openAccordions[indexKey] && (
                   <div className="overflow-x-auto p-4">
                     <table className="min-w-full divide-y divide-gray-200">
