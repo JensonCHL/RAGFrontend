@@ -1565,7 +1565,7 @@ def processing_updates():
 from manual_indexer import index_company_worker
 
 # Load the N8N API Key from environment variables
-N8N_API_KEY = os.getenv("N8N_API_KEY")
+N8N_API_KEY = os.getenv("API_BEARER_TOKEN")
 
 @app.route('/api/create-index', methods=['POST'])
 def create_index_endpoint():
