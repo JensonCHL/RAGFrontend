@@ -38,7 +38,7 @@ export default function FileManagementPage() {
         // Load companies
         const companiesResponse = await fetch('/api/companies');
         const companiesData = await companiesResponse.json();
-        
+
         if (companiesData.error) {
           setError(companiesData.error);
           setCompanies([]);
@@ -48,7 +48,7 @@ export default function FileManagementPage() {
             ...company,
             name: company.name.toUpperCase()
           })).sort((a: Company, b: Company) => a.name.localeCompare(b.name));
-          
+
           setCompanies(formattedCompanies);
         }
       } catch (error) {
@@ -61,7 +61,7 @@ export default function FileManagementPage() {
       try {
         const qdrantResponse = await fetch('http://localhost:5000/api/companies-with-documents');
         const qdrantData = await qdrantResponse.json();
-        
+
         if (qdrantData.success) {
           // Transform the data into a record for easy lookup
           const qdrantRecord: Record<string, QdrantCompany> = {};
@@ -112,7 +112,7 @@ export default function FileManagementPage() {
           const data = JSON.parse(event.data);
 
           // Handle different types of messages
-            if (data.type === 'states_updated') {
+          if (data.type === 'states_updated') {
             const newStates = convertKeysToCamelCase(data.states);
             setProcessingStates(prev => ({ ...prev, ...newStates }));
           } else if (data.type === 'qdrant_data_updated') {
@@ -167,16 +167,16 @@ export default function FileManagementPage() {
     const companyProcessingStates = Object.values(processingStates).filter(
       (state) => state.companyId === companyId
     );
-    
+
     const isAnyDocumentProcessing = companyProcessingStates.some(
       (state) => state.isProcessing
     );
-    
+
     // Prevent selection if company is processing
     if (isAnyDocumentProcessing && checked) {
       return;
     }
-    
+
     setSelectedCompanies(prev => {
       if (checked) {
         return [...prev, companyId];
@@ -193,14 +193,14 @@ export default function FileManagementPage() {
         const companyProcessingStates = Object.values(processingStates).filter(
           (state) => state.companyId === companyId
         );
-        
+
         const isAnyDocumentProcessing = companyProcessingStates.some(
           (state) => state.isProcessing
         );
-        
+
         return !isAnyDocumentProcessing;
       });
-      
+
       setSelectedCompanies(selectableCompanyIds);
     } else {
       setSelectedCompanies([]);
@@ -235,22 +235,22 @@ export default function FileManagementPage() {
 
     // Call the API for each job in parallel
     try {
-      await Promise.all(jobs.map(job => 
+      await Promise.all(jobs.map(job =>
         fetch('http://localhost:5000/api/process-documents', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
           // The backend expects a single job object, not an array
-          body: JSON.stringify(job) 
+          body: JSON.stringify(job)
         })
-        .then(response => {
-          if (!response.ok) {
-            console.error(`Failed to start processing for ${job.company_id}`);
-          }
-        })
+          .then(response => {
+            if (!response.ok) {
+              console.error(`Failed to start processing for ${job.company_id}`);
+            }
+          })
       ));
-      
+
       // Deselect all after starting the jobs
       setSelectedCompanies([]);
     } catch (error) {
@@ -264,7 +264,7 @@ export default function FileManagementPage() {
       setError(null);
       const response = await fetch('/api/companies');
       const data = await response.json();
-      
+
       if (data.error) {
         setError(data.error);
         setCompanies([]);
@@ -274,7 +274,7 @@ export default function FileManagementPage() {
           ...company,
           name: company.name.toUpperCase()
         })).sort((a: Company, b: Company) => a.name.localeCompare(b.name));
-        
+
         setCompanies(formattedCompanies);
       }
     } catch (error) {
@@ -289,7 +289,7 @@ export default function FileManagementPage() {
       setLoadingQdrant(true);
       const response = await fetch('http://localhost:5000/api/companies-with-documents');
       const data = await response.json();
-      
+
       console.log('Fetched Qdrant data:', data); // Debug log
 
       if (data.success) {
@@ -318,22 +318,22 @@ export default function FileManagementPage() {
         // Check if file path contains subdirectories
         return file.webkitRelativePath && file.webkitRelativePath.split('/').length > 2;
       });
-      
+
       if (hasNestedFolders) {
         setError('Nested folders are not allowed. Please upload folders with files directly inside them.');
         return;
       }
-      
+
       // Convert company name to uppercase
       const upperCaseFolderName = folderName.toUpperCase();
-      
+
       // Check for duplicate company name
       const existingCompany = companies.find(company => company.name === upperCaseFolderName);
       if (existingCompany) {
         // Automatically add files to existing company without confirmation
         console.log(`Adding files to existing company: ${upperCaseFolderName}`);
       }
-      
+
       const formData = new FormData();
       files.forEach(file => formData.append('files', file));
       formData.append('companyName', upperCaseFolderName);
@@ -343,7 +343,7 @@ export default function FileManagementPage() {
       setUploadProgress(0);
 
       const xhr = new XMLHttpRequest();
-      
+
       // Track upload progress
       xhr.upload.addEventListener('progress', (event) => {
         if (event.lengthComputable) {
@@ -354,15 +354,15 @@ export default function FileManagementPage() {
 
       // Handle response
       const responsePromise = new Promise((resolve, reject) => {
-        xhr.onload = function() {
+        xhr.onload = function () {
           if (xhr.status >= 200 && xhr.status < 300) {
             resolve(xhr.response);
           } else {
             reject(new Error(`HTTP ${xhr.status}: ${xhr.statusText}`));
           }
         };
-        
-        xhr.onerror = function() {
+
+        xhr.onerror = function () {
           reject(new Error('Network error'));
         };
       });
@@ -395,14 +395,14 @@ export default function FileManagementPage() {
     try {
       // Convert company name to uppercase
       const upperCaseCompanyName = companyName.toUpperCase();
-      
+
       // Check for duplicate company name
       const existingCompany = companies.find(company => company.name === upperCaseCompanyName);
       if (existingCompany) {
         setError(`Company "${upperCaseCompanyName}" already exists.`);
         return;
       }
-      
+
       const response = await fetch('/api/create-company', {
         method: 'POST',
         headers: {
@@ -462,7 +462,7 @@ export default function FileManagementPage() {
         // Refresh Qdrant data
         await fetchQdrantData();
         setError(null);
-        
+
         // Update the selectedCompany state in the modal if it's open
         if (selectedCompany && selectedCompany.id === companyId) {
           setSelectedCompany(prev => {
@@ -489,25 +489,25 @@ export default function FileManagementPage() {
       const hasNestedFolders = files.some(file => {
         return file.webkitRelativePath && file.webkitRelativePath.split('/').length > 2;
       });
-      
+
       if (hasNestedFolders) {
         setError('Nested folders are not allowed. Please upload folders with files directly inside them.');
         return;
       }
-      
+
       // Check for duplicate file names
       const company = companies.find(c => c.id === companyId);
       if (company) {
-        const duplicateFiles = files.filter(file => 
+        const duplicateFiles = files.filter(file =>
           company.contracts.some(contract => contract.name === file.name)
         );
-        
+
         if (duplicateFiles.length > 0) {
           // Automatically overwrite duplicate files without confirmation
           console.log(`Overwriting ${duplicateFiles.length} duplicate files`);
         }
       }
-      
+
       const formData = new FormData();
       files.forEach(file => formData.append('files', file));
       formData.append('companyName', companyId);
@@ -517,7 +517,7 @@ export default function FileManagementPage() {
       setUploadProgress(0);
 
       const xhr = new XMLHttpRequest();
-      
+
       // Track upload progress
       xhr.upload.addEventListener('progress', (event) => {
         if (event.lengthComputable) {
@@ -528,15 +528,15 @@ export default function FileManagementPage() {
 
       // Handle response
       const responsePromise = new Promise((resolve, reject) => {
-        xhr.onload = function() {
+        xhr.onload = function () {
           if (xhr.status >= 200 && xhr.status < 300) {
             resolve(xhr.response);
           } else {
             reject(new Error(`HTTP ${xhr.status}: ${xhr.statusText}`));
           }
         };
-        
-        xhr.onerror = function() {
+
+        xhr.onerror = function () {
           reject(new Error('Network error'));
         };
       });
@@ -557,7 +557,7 @@ export default function FileManagementPage() {
       // Refresh Qdrant data
       await fetchQdrantData();
       setError(null);
-      
+
       // Update the selectedCompany state in the modal if it's open
       if (selectedCompany && selectedCompany.id === companyId) {
         // Refresh the selected company data
@@ -625,10 +625,10 @@ export default function FileManagementPage() {
     } catch (error) {
       console.error('Process unsynced documents error:', error);
       setError(`Failed to process unsynced documents: ${error instanceof Error ? error.message : 'Unknown error'}`);
-      
+
       // Update processing state to show error - we don't have doc_id here, so we can't update specific state
       // The SSE updates will eventually reflect the error state
-      
+
       // Clear error message after 10 seconds
       setTimeout(() => {
         setError(null);
@@ -649,11 +649,11 @@ export default function FileManagementPage() {
   // Filter companies based on search term
   const filteredCompanies = companies.filter(company => {
     if (!searchTerm.trim()) return true;
-    
+
     const term = searchTerm.toLowerCase();
     return (
       company.name.toLowerCase().includes(term) ||
-      company.contracts.some(contract => 
+      company.contracts.some(contract =>
         contract.name.toLowerCase().includes(term)
       )
     );
@@ -661,29 +661,29 @@ export default function FileManagementPage() {
 
   // Derived state for convenience - MUST be after filteredCompanies is defined
   const visibleCompanyIds = filteredCompanies.map(c => c.id);
-  
+
   // Filter out processing companies from visibleCompanyIds for selection purposes
   const selectableCompanyIds = visibleCompanyIds.filter((companyId: string) => {
     const companyProcessingStates = Object.values(processingStates).filter(
       (state) => state.companyId === companyId
     );
-    
+
     const isAnyDocumentProcessing = companyProcessingStates.some(
       (state) => state.isProcessing
     );
-    
+
     return !isAnyDocumentProcessing;
   });
-  
+
   const isAllSelected = selectableCompanyIds.length > 0 && selectedCompanies.length === selectableCompanyIds.length;
-  
+
   // Check if all visible companies are processing (to disable Select All)
-  const areAllCompaniesProcessing = visibleCompanyIds.length > 0 && 
+  const areAllCompaniesProcessing = visibleCompanyIds.length > 0 &&
     visibleCompanyIds.every((companyId: string) => {
       const companyProcessingStates = Object.values(processingStates).filter(
         (state) => state.companyId === companyId
       );
-      
+
       return companyProcessingStates.some((state) => state.isProcessing);
     });
 
@@ -699,7 +699,7 @@ export default function FileManagementPage() {
                   Manage company folders and contracts
                 </p>
               </div>
-              <Link 
+              <Link
                 href="/dashboard"
                 className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
               >
@@ -733,7 +733,7 @@ export default function FileManagementPage() {
                 Manage company folders and contracts
               </p>
             </div>
-            <Link 
+            <Link
               href="/dashboard"
               className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
             >
@@ -780,29 +780,27 @@ export default function FileManagementPage() {
 
         {isCreatingCompany && (
           <div className="mb-8">
-            <CompanyCreationForm 
-              onCreateCompany={handleCreateCompany} 
-              onCancel={() => setIsCreatingCompany(false)} 
+            <CompanyCreationForm
+              onCreateCompany={handleCreateCompany}
+              onCancel={() => setIsCreatingCompany(false)}
             />
           </div>
         )}
-        
+
         {/* Selection Controls */}
         {filteredCompanies.length > 0 && (
-          <div className="flex justify-between items-center bg-gray-50 p-3 rounded-lg mb-4">
+          <div className="flex justify-between items-center bg-gray-50 rounded-lg mb-4">
             <div className="flex items-center">
-              <input 
+              <input
                 type="checkbox"
-                className={`h-5 w-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500 ${
-                  areAllCompaniesProcessing ? 'opacity-50 cursor-not-allowed' : ''
-                }`}
+                className={`h-5 w-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500 ${areAllCompaniesProcessing ? 'opacity-50 cursor-not-allowed' : ''
+                  }`}
                 checked={isAllSelected}
                 onChange={handleSelectAllChange}
                 disabled={areAllCompaniesProcessing}
               />
-              <label htmlFor="select-all" className={`ml-2 text-sm font-medium ${
-                areAllCompaniesProcessing ? 'text-gray-400' : 'text-gray-700'
-              }`}>
+              <label htmlFor="select-all" className={`ml-2 text-sm font-medium ${areAllCompaniesProcessing ? 'text-gray-400' : 'text-gray-700'
+                }`}>
                 Select All
               </label>
             </div>

@@ -184,7 +184,8 @@ export default function CompanyCard({
   const syncStatus = getSyncStatus();
 
   return (
-    <div className="bg-white rounded-lg shadow overflow-hidden">
+    <div className="bg-white rounded-lg shadow overflow-hidden
+    ">
       {/* Company Header - Windows File Manager Style */}
       <div
         className="p-4 border-b border-gray-200 hover:bg-gray-50"
@@ -200,9 +201,8 @@ export default function CompanyCard({
         <div className="flex items-start w-full flex-nowrap">
           <input
             type="checkbox"
-            className={`mt-1 h-5 w-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500 ${
-              isAnyDocumentProcessing ? 'opacity-50 cursor-not-allowed' : ''
-            }`}
+            className={`mt-1 h-5 w-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500 ${isAnyDocumentProcessing ? 'opacity-50 cursor-not-allowed' : ''
+              }`}
             checked={isSelected}
             onChange={(e) => onSelectionChange(company.id, e.target.checked)}
             disabled={isAnyDocumentProcessing}
@@ -215,7 +215,7 @@ export default function CompanyCard({
               stroke="currentColor"
               viewBox="0 0 24 24"
               xmlns="http://www.w3.org/2000/svg"
-              
+
               onClick={(e) => {
                 e.stopPropagation();
                 onOpenModal(company);
@@ -283,7 +283,7 @@ export default function CompanyCard({
                     e.stopPropagation();
                     onProcessUnsynced(company.id);
                   }}
-                  className="p-1 text-blue-600 hover:text-blue-800"
+                  className="p-1 bg-green-600 hover:bg-green-700 text-white rounded-lg transition duration-150 ease-in-out"
                   title="Process unsynced documents"
                 >
                   <svg
