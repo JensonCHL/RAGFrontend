@@ -34,7 +34,7 @@ services:
     environment:
       - FLASK_APP=n8n_API.py
       - FLASK_DEBUG=1
-      - INTERNAL_API_BASE_URL=http://backend:5001
+      - INTERNAL_API_BASE_URL=http://localhost:5001
     volumes:
       - ./backend:/app
     depends_on:
@@ -51,7 +51,7 @@ services:
     ports:
       - "80:3000"
     environment:
-      - NEXT_PUBLIC_API_URL=http://backend:5001
+      - NEXT_PUBLIC_API_URL=http://localhost:5001
     volumes:
       - .:/app
       - /app/node_modules
