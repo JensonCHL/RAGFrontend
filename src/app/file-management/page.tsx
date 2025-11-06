@@ -60,7 +60,7 @@ function FileManagementPage() {
 
       // Load Qdrant data
       try {
-        const qdrantResponse = await fetch('http://localhost:5000/api/companies-with-documents');
+        const qdrantResponse = await fetch('http://localhost:5001/api/companies-with-documents');
         const qdrantData = await qdrantResponse.json();
 
         if (qdrantData.success) {
@@ -81,7 +81,7 @@ function FileManagementPage() {
 
       // Load processing states
       try {
-        const response = await fetch(`http://localhost:5000/api/document-processing-states?t=${new Date().getTime()}`);
+        const response = await fetch(`http://localhost:5001/api/document-processing-states?t=${new Date().getTime()}`);
         const allStates = await response.json();
         setProcessingStates(convertKeysToCamelCase(allStates));
       } catch (error) {
@@ -106,7 +106,7 @@ function FileManagementPage() {
     let eventSource: EventSource | null = null;
 
     const setupEventSource = () => {
-      eventSource = new EventSource('http://localhost:5000/events/processing-updates');
+      eventSource = new EventSource('http://localhost:5001/events/processing-updates');
 
       eventSource.onmessage = (event) => {
         try {
@@ -237,7 +237,7 @@ function FileManagementPage() {
     // Call the API for each job in parallel
     try {
       await Promise.all(jobs.map(job =>
-        fetch('http://localhost:5000/api/process-documents', {
+        fetch('http://localhost:5001/api/process-documents', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -288,7 +288,7 @@ function FileManagementPage() {
   const fetchQdrantData = async () => {
     try {
       setLoadingQdrant(true);
-      const response = await fetch('http://localhost:5000/api/companies-with-documents');
+      const response = await fetch('http://localhost:5001/api/companies-with-documents');
       const data = await response.json();
 
       console.log('Fetched Qdrant data:', data); // Debug log
@@ -605,7 +605,7 @@ function FileManagementPage() {
       const filesToProcess = unsyncedDocs.map(doc => doc.name);
 
       // Call the new processing API endpoint
-      const response = await fetch('http://localhost:5000/api/process-documents', {
+      const response = await fetch('http://localhost:5001/api/process-documents', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

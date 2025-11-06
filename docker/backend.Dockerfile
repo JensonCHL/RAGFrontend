@@ -15,8 +15,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 # It will be provided at runtime via docker-compose.
 
 # Expose the port the app runs on
-EXPOSE 5000
+EXPOSE 5001
 
 # Define the command to run the Flask development server
 # The --host=0.0.0.0 flag makes it accessible from outside the container
-CMD ["flask", "run", "--host=0.0.0.0", "--port=5000"]
+CMD ["flask", "run", "--host=0.0.0.0", "--port=5001"]

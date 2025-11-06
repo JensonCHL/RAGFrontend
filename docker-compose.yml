@@ -6,7 +6,7 @@ services:
       context: .
       dockerfile: docker/backend.Dockerfile
     ports:
-      - "5000:5000"
+      - "5001:5001"
     env_file:
       - .env
     environment:
@@ -19,6 +19,25 @@ services:
     networks:
       - app-network
 
+  api_gateway:
+    build:
+      context: .
+      dockerfile: docker/api_gateway.Dockerfile # Use dedicated Dockerfile
+    ports:
+      - "5000:5000"
+    env_file:
+      - .env
+    environment:
+      - FLASK_APP=n8n_API.py
+      - FLASK_DEBUG=1
+      - INTERNAL_API_BASE_URL=http://backend:5001 # Point to the internal backend service
+    volumes:
+      - ./backend:/app
+    depends_on:
+      - backend
+    networks:
+      - app-network
+
   frontend:
     build:
       context: .
@@ -26,7 +45,7 @@ services:
     ports:
       - "3000:3000"
     environment:
-      - NEXT_PUBLIC_API_URL=http://backend:5000
+      - NEXT_PUBLIC_API_URL=http://backend:5001
     volumes:
       - .:/app
       - /app/node_modules # Exclude node_modules from host mount to prevent issues

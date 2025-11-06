@@ -8,3 +8,5 @@ Pillow
 langchain-openai
 psycopg2-binary
 gunicorn
+PyJWT
+requests
