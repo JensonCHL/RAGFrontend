@@ -3,8 +3,10 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { signIn } from 'next-auth/react';
+import Image from 'next/image';
 
 export default function LoginPage() {
+  console.log('LoginPage rendered');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -38,12 +40,34 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
-      <div className="sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="flex justify-center">
-          <div className="bg-gray-200 border-2 border-dashed rounded-xl w-16 h-16 flex items-center justify-center">
-            <span className="text-gray-500 text-2xl font-bold">D</span>
+      <div className="sm:mx-auto sm:w-full sm:max-w-4xl">
+        <div className="flex justify-center space-x-20 mb-2">
+          
+          <div className="flex flex-col items-center">
+            <div className="h-30 w-90 relative">
+              <Image 
+                src="/cloudeka-logo1.png" 
+                alt="Cloudeka Logo" 
+                fill
+                className="object-contain"
+              />
+            </div>
+            <span className="text-lg text-gray-600 mt-2">Powered By</span>
+          </div>
+          
+          <div className="flex flex-col items-center">
+            <div className="h-30 w-90 relative">
+              <Image 
+                src="/dekacode-logo.png" 
+                alt="DekaCode Logo" 
+                fill
+                className="object-contain"
+              />
+            </div>
+            <span className="text-lg text-gray-600 mt-2">Built With</span>
           </div>
         </div>
+        
         <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
           Sign in to your account
         </h2>
@@ -128,6 +152,10 @@ export default function LoginPage() {
               </button>
             </div>
           </form>
+        </div>
+        
+        <div className="mt-6 text-center text-xs text-gray-500">
+          <p>Built with DekaCode & DekaLLM</p>
         </div>
       </div>
     </div>

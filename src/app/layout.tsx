@@ -16,6 +16,9 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Document Ingestion Dashboard",
   description: "Upload and manage company contracts for RAG processing",
+  icons: {
+    icon: '/favicon.ico',
+  },
 };
 
 export default function RootLayout({
