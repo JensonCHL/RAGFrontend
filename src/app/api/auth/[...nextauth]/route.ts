@@ -11,16 +11,39 @@ export const authOptions: AuthOptions = {
         password: { label: "Password", type: "password" }
       },
       async authorize(credentials) {
-        // Use credentials from environment variables
-        const validUsername = process.env.APP_USERNAME;
-        const validPassword = process.env.APP_PASSWORD;
-        
-        if (credentials?.username === validUsername && credentials?.password === validPassword) {
-          return {
-            id: "1",
+        // Support for multiple users
+        const users = [
+          {
+            username: process.env.APP_USERNAME,
+            password: process.env.APP_PASSWORD,
             name: "Admin User",
-            email: "admin@example.com",
-            username: validUsername
+            email: "admin@example.com"
+          }
+        ];
+        
+        // Add additional users from environment variables
+        let i = 1;
+        while (process.env[`APP_USERNAME${i}`] && process.env[`APP_PASSWORD${i}`]) {
+          users.push({
+            username: process.env[`APP_USERNAME${i}`],
+            password: process.env[`APP_PASSWORD${i}`],
+            name: `User ${i}`,
+            email: `user${i}@example.com`
+          });
+          i++;
+        }
+        
+        // Check if credentials match any user
+        const validUser = users.find(
+          user => credentials?.username === user.username && credentials?.password === user.password
+        );
+        
+        if (validUser) {
+          return {
+            id: users.indexOf(validUser).toString(),
+            name: validUser.name,
+            email: validUser.email,
+            username: validUser.username
           } as any
         }
         
