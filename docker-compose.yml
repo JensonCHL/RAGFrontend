@@ -6,7 +6,7 @@ services:
       context: .
       dockerfile: docker/backend.Dockerfile
     container_name: backend
-    image: bra-rag-backend:latest
+    image: backend
     ports:
       - "5001:5001"
     env_file:
@@ -26,7 +26,7 @@ services:
       context: .
       dockerfile: docker/api_gateway.Dockerfile
     container_name: api-gateway
-    image: bra-rag-api-gateway:latest
+    image: api-gateway
     ports:
       - "5000:5000"
     env_file:
@@ -47,7 +47,7 @@ services:
       context: .
       dockerfile: docker/frontend.Dockerfile
     container_name: frontend
-    image: bra-rag-frontend:latest
+    image: frontend
     ports:
       - "80:3000"
     environment:
