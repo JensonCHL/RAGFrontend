@@ -1,8 +1,7 @@
 import NextAuth from "next-auth"
 import CredentialsProvider from "next-auth/providers/credentials"
-import { AuthOptions } from "next-auth"
 
-export const authOptions: AuthOptions = {
+export const authOptions = {
   providers: [
     CredentialsProvider({
       name: "Credentials",
@@ -44,7 +43,7 @@ export const authOptions: AuthOptions = {
             name: validUser.name,
             email: validUser.email,
             username: validUser.username
-          } as any
+          }
         }
         
         return null
