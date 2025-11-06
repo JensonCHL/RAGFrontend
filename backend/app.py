@@ -1574,14 +1574,14 @@ def create_index_endpoint():
     Expects 'Authorization: Bearer <YOUR_API_KEY>' in the header.
     """
     # API Key Authentication
-    if N8N_API_KEY:
-        auth_header = request.headers.get('Authorization')
-        if not auth_header or not auth_header.startswith('Bearer '):
-            return jsonify({'success': False, 'error': 'Authorization header is missing or invalid'}), 401
+    # if N8N_API_KEY:
+    #     auth_header = request.headers.get('Authorization')
+    #     if not auth_header or not auth_header.startswith('Bearer '):
+    #         return jsonify({'success': False, 'error': 'Authorization header is missing or invalid'}), 401
         
-        token = auth_header.split(' ')[1]
-        if token != N8N_API_KEY:
-            return jsonify({'success': False, 'error': 'Invalid API Key'}), 401
+    #     token = auth_header.split(' ')[1]
+    #     if token != N8N_API_KEY:
+    #         return jsonify({'success': False, 'error': 'Invalid API Key'}), 401
 
     # --- Original logic continues if authentication is successful ---
     data = request.get_json()

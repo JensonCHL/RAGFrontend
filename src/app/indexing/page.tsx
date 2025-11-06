@@ -28,7 +28,7 @@ import DefaultLayout from '../default-layout';
 
 export function IndexingPage() {
   const [indexName, setIndexName] = useState('');
-  const [apiKey, setApiKey] = useState(''); // State for API Key
+  // const [apiKey, setApiKey] = useState(''); // State for API Key
   const [isIndexing, setIsIndexing] = useState(false);
   const [statusMessages, setStatusMessages] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -102,10 +102,10 @@ export function IndexingPage() {
       setError('Index name cannot be empty.');
       return;
     }
-    if (!apiKey.trim()) {
-      setError('API Key cannot be empty to start an indexing job.');
-      return;
-    }
+    // if (!apiKey.trim()) {
+    //   setError('API Key cannot be empty to start an indexing job.');
+    //   return;
+    // }
 
     setIsIndexing(true);
     setStatusMessages([]);
@@ -115,8 +115,8 @@ export function IndexingPage() {
       const response = await fetch('http://localhost:5001/api/create-index', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json'
+          // 'Authorization': `Bearer ${apiKey}`,
         },
         body: JSON.stringify({ index_name: indexName }),
       });
@@ -208,7 +208,7 @@ export function IndexingPage() {
           {statusMessages.length > 0 && (
             <div className="bg-gray-50 rounded-lg p-4">
               <h2 className="text-lg font-medium text-gray-800 mb-2">Indexing Status</h2>
-              <div className="space-y-2 text-sm text-gray-700 font-mono">
+              <div className="max-h-60 overflow-y-auto space-y-2 text-sm text-gray-700 font-mono">
                 {statusMessages.map((msg, index) => (
                   <p key={`${index}-${msg}`}>{`[${new Date().toLocaleTimeString()}] ${msg}`}</p>
                 ))}
