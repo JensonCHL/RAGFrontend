@@ -5,6 +5,8 @@ services:
     build:
       context: .
       dockerfile: docker/backend.Dockerfile
+    container_name: backend
+    image: bra-rag-backend:latest
     ports:
       - "5001:5001"
     env_file:
@@ -22,7 +24,9 @@ services:
   api_gateway:
     build:
       context: .
-      dockerfile: docker/api_gateway.Dockerfile # Use dedicated Dockerfile
+      dockerfile: docker/api_gateway.Dockerfile
+    container_name: api-gateway
+    image: bra-rag-api-gateway:latest
     ports:
       - "5000:5000"
     env_file:
@@ -30,7 +34,7 @@ services:
     environment:
       - FLASK_APP=n8n_API.py
       - FLASK_DEBUG=1
-      - INTERNAL_API_BASE_URL=http://backend:5001 # Point to the internal backend service
+      - INTERNAL_API_BASE_URL=http://backend:5001
     volumes:
       - ./backend:/app
     depends_on:
@@ -42,13 +46,15 @@ services:
     build:
       context: .
       dockerfile: docker/frontend.Dockerfile
+    container_name: frontend
+    image: bra-rag-frontend:latest
     ports:
       - "80:3000"
     environment:
       - NEXT_PUBLIC_API_URL=http://backend:5001
     volumes:
       - .:/app
-      - /app/node_modules # Exclude node_modules from host mount to prevent issues
+      - /app/node_modules
     depends_on:
       - backend
     networks:
