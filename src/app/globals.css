@@ -24,3 +24,13 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* Ensure input text is always black */
+input, textarea, select {
+  color: #000000 !important;
+}
+
+/* Ensure input placeholders are visible */
+input::placeholder, textarea::placeholder, select::placeholder {
+  color: #6b7280 !important; /* gray-500 */
+}
