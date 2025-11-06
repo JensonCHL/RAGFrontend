@@ -72,7 +72,7 @@ export default function LoginPage() {
           Sign in to your account
         </h2>
         <p className="mt-2 text-center text-sm text-gray-600">
-          Contract Processing Dashboard1111
+          Contract Processing Dashboard
         </p>
       </div>
 
