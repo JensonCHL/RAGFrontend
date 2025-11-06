@@ -14,8 +14,9 @@ import LoadingSpinner from '@/components/LoadingSpinner';
 import Link from 'next/link';
 import { Contract, Company, QdrantDocumentMetadata, QdrantCompany, ProcessingState } from '@/types';
 import { convertKeysToCamelCase } from '@/utils/data-transformers';
+import DefaultLayout from '../default-layout';
 
-export default function FileManagementPage() {
+function FileManagementPage() {
   const [companies, setCompanies] = useState<Company[]>([]);
   const [isCreatingCompany, setIsCreatingCompany] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -856,3 +857,11 @@ export default function FileManagementPage() {
     </div>
   );
 }
+  
+export default function FileManagementPageWithLayout() {  
+  return (  
+    <DefaultLayout>  
+      <FileManagementPage />  
+    </DefaultLayout>  
+  );  
+} 

@@ -3,10 +3,12 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState, useEffect } from 'react';
+import { useSession, signOut } from 'next-auth/react';
 
 export default function FloatingNavbar() {
   const pathname = usePathname();
   const [isScrolled, setIsScrolled] = useState(false);
+  const { data: session, status } = useSession();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -16,6 +18,10 @@ export default function FloatingNavbar() {
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
+
+  const handleLogout = async () => {
+    await signOut({ callbackUrl: '/login' });
+  };
 
   return (
     <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
@@ -50,6 +56,20 @@ export default function FloatingNavbar() {
               </Link>
             </div>
           </div>
+          
+          {status === 'authenticated' && (
+            <div className="flex items-center">
+              <span className="text-sm text-gray-700 mr-4 hidden md:inline">
+                Welcome, {session.user?.username || session.user?.name}
+              </span>
+              <button
+                onClick={handleLogout}
+                className="text-sm text-gray-700 hover:text-gray-900 font-medium"
+              >
+                Logout
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </nav>

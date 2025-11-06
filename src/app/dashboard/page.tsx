@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { ProcessingState } from '@/types';
 import ProcessingProgressDisplay from '@/components/ProcessingProgressDisplay';
+import DefaultLayout from '../default-layout';
 
 // Interface for document metadata
 interface DocumentMetadata {
@@ -19,7 +20,7 @@ interface QdrantCompany {
   isExpanded?: boolean;
 }
 
-export default function DashboardPage() {
+function DashboardPage() {
   const [qdrantCompanies, setQdrantCompanies] = useState<QdrantCompany[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -693,3 +694,12 @@ export default function DashboardPage() {
     </div>
   );
 }
+
+export default function DashboardPageWithLayout() {
+  return (
+    <DefaultLayout>
+      <DashboardPage />
+    </DefaultLayout>
+  );
+}
+
