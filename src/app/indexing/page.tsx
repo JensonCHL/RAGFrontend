@@ -39,7 +39,7 @@ export function IndexingPage() {
   // Function to fetch data from the database
   const fetchData = async () => {
     try {
-      const response = await fetch('http://localhost:5001/api/get-all-data');
+      const response = await fetch('http://backend:5001/api/get-all-data');
       const result = await response.json();
       if (result.success) {
         setTableData(result.data);
@@ -68,7 +68,7 @@ export function IndexingPage() {
     // Fetch initial data on mount
     fetchData();
 
-    const eventSource = new EventSource('http://localhost:5001/events/processing-updates');
+    const eventSource = new EventSource('http://backend:5001/events/processing-updates');
 
     eventSource.onmessage = (event) => {
       try {
@@ -112,7 +112,7 @@ export function IndexingPage() {
     setError(null);
 
     try {
-      const response = await fetch('http://localhost:5001/api/create-index', {
+      const response = await fetch('http://backend:5001/api/create-index', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -144,7 +144,7 @@ export function IndexingPage() {
     setError(null);
 
     try {
-      const response = await fetch(`http://localhost:5001/api/index/${indexToDelete}` , {
+      const response = await fetch(`http://backend:5001/api/index/${indexToDelete}` , {
         method: 'DELETE',
       });
 
