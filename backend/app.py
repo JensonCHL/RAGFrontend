@@ -1433,13 +1433,19 @@ def process_documents():
                     except OSError as e:
                         print(f"ERROR: Failed to remove log file {log_file_path}: {e}")
 
-        def start_processing_in_background():
-            for _ in generate():
-                pass
+        # --- Start processing in the foreground for debugging ---
+        # This will block the request, but will show us the print statements
+        for _ in generate():
+            pass
 
-        processing_thread = threading.Thread(target=start_processing_in_background)
-        processing_thread.daemon = True
-        processing_thread.start()
+        # --- Original background processing code (commented out for debugging) ---
+        # def start_processing_in_background():
+        #     for _ in generate():
+        #         pass
+
+        # processing_thread = threading.Thread(target=start_processing_in_background)
+        # processing_thread.daemon = True
+        # processing_thread.start()
 
         return jsonify({
             'success': True,
