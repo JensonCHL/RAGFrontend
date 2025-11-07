@@ -1,6 +1,6 @@
 FROM node:20-alpine
 
-# Install Python, PostgreSQL client, and other dependencies
+# Install Python and dependencies
 RUN apk add --no-cache \
     python3 \
     py3-pip \
@@ -14,20 +14,17 @@ RUN apk add --no-cache \
     gcc \
     postgresql-dev
 
-# Set up working directory
-WORKDIR /app
-
-# Create and activate virtual environment
-RUN python3 -m venv /opt/venv
-ENV PATH="/opt/venv/bin:$PATH"
-ENV VIRTUAL_ENV="/opt/venv"
+# Create symlink for python -> python3
+RUN ln -sf python3 /usr/bin/python
 
 # Upgrade pip
-RUN pip install --upgrade pip
+RUN python -m pip install --upgrade pip
 
-# Copy and install Python dependencies first (for backend services)
-COPY backend/requirements.txt ./backend/
-RUN pip install --no-cache-dir --break-system-packages -r backend/requirements.txt
+# Install Python packages directly without virtual environment
+RUN python -m pip install --break-system-packages flask qdrant-client python-dotenv flask-cors openai PyMuPDF Pillow langchain-openai psycopg2-binary gunicorn PyJWT requests
+
+# Set up working directory
+WORKDIR /app
 
 # Copy and install Node.js dependencies
 COPY package*.json ./
