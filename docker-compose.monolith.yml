@@ -1,0 +1,39 @@
+version: '3.8'
+
+services:
+  rag-monolith:
+    build:
+      context: .
+      dockerfile: docker/monolith.Dockerfile
+    container_name: rag-monolith
+    ports:
+      - "80:3000"      # Frontend
+      - "5000:5000"    # API Gateway
+      - "5001:5001"    # Backend
+      - "5432:5432"    # PostgreSQL
+    env_file:
+      - .env
+    volumes:
+      - ./knowledge:/app/knowledge
+      - ./backend/ocr_cache:/app/backend/ocr_cache
+      - ./backend/processing_logs:/app/backend/processing_logs
+      - postgres_data:/var/lib/postgresql/data
+    environment:
+      # Update all service URLs to use localhost since they're all in the same container
+      - NEXT_PUBLIC_API_URL=http://localhost:5001
+      - INTERNAL_API_BASE_URL=http://localhost:5001
+      - DB_HOST=localhost
+      - DB_PORT=5432
+      - DB_NAME=postgres
+      - DB_USER=postgres
+      - DB_PASSWORD=Cloudeka12345
+    privileged: true
+    networks:
+      - app-network
+
+volumes:
+  postgres_data:
+
+networks:
+  app-network:
+    driver: bridge
