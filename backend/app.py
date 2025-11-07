@@ -1072,6 +1072,8 @@ def process_documents():
     Returns streaming progress updates for all steps
     """
     try:
+        print("Try Block Executed")
+
         data = request.get_json()
         company_id = data.get('company_id')
         files = data.get('files', [])
@@ -1081,8 +1083,8 @@ def process_documents():
                 'success': False,
                 'error': 'Missing company_id or files'
             }), 400
-        
         def generate():
+            print("Try def block Executed")
             log_file_path = get_log_file_path(company_id)
             document_ids = []
             try:
