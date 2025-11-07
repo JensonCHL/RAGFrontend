@@ -16,9 +16,13 @@ RUN apk add --no-cache \
 # Set up working directory
 WORKDIR /app
 
+# Create and activate virtual environment
+RUN python3 -m venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+
 # Copy and install Python dependencies first (for backend services)
 COPY backend/requirements.txt ./backend/
-RUN pip3 install --no-cache-dir -r backend/requirements.txt
+RUN pip install --no-cache-dir -r backend/requirements.txt
 
 # Copy and install Node.js dependencies
 COPY package*.json ./

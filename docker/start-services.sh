@@ -1,5 +1,9 @@
 #!/bin/bash
 
+# Activate virtual environment
+export VIRTUAL_ENV=/opt/venv
+export PATH="$VIRTUAL_ENV/bin:$PATH"
+
 # Start PostgreSQL in the background
 echo "Starting PostgreSQL..."
 mkdir -p /var/lib/postgresql/data
@@ -24,13 +28,13 @@ su - postgres -c "psql -c \"GRANT ALL PRIVILEGES ON DATABASE postgres TO postgre
 echo "Starting Backend service..."
 export FLASK_APP=app.py
 export FLASK_DEBUG=1
-python3 backend/app.py &
+python backend/app.py &
 
 # Start API gateway service
 echo "Starting API Gateway service..."
 export FLASK_APP=n8n_API.py
 export FLASK_DEBUG=1
-python3 backend/n8n_API.py &
+python backend/n8n_API.py &
 
 # Start frontend service
 echo "Starting Frontend service..."
