@@ -5,7 +5,7 @@ import { NextRequest, NextResponse } from "next/server"
 
 const backendUrl = process.env.INTERNAL_API_URL
 
-export async function handler(req: NextRequest) {
+export async function handler(req: NextRequest, { params }: { params: { slug: string[] } }) {
   const session = await getServerSession(authOptions)
 
   if (!session) {
@@ -15,7 +15,7 @@ export async function handler(req: NextRequest) {
     })
   }
 
-  const { slug } = req.nextUrl
+  const slug = params.slug.join("/")
   const apiUrl = `${backendUrl}/${slug}`
 
   try {
