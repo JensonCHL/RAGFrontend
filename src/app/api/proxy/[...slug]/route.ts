@@ -18,9 +18,15 @@ async function proxyRequest(req: NextRequest, slug: string[]) {
   const apiUrl = `${backendUrl}/${path}`
 
   try {
+    const headers = new Headers(req.headers);
+    // Ensure Content-Type is explicitly forwarded if present
+    if (req.headers.get('content-type')) {
+      headers.set('content-type', req.headers.get('content-type') as string);
+    }
+
     const backendResponse = await fetch(apiUrl, {
       method: req.method,
-      headers: { ...req.headers },
+      headers: headers,
       body: req.body,
       // @ts-ignore
       duplex: "half",
