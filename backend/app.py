@@ -1086,6 +1086,7 @@ def process_documents():
             log_file_path = get_log_file_path(company_id)
             document_ids = []
             try:
+                print("DEBUG: Entered generate() try block.", flush=True)
                 # Process each file
                 for file_idx, file_name in enumerate(files):
                     import urllib.parse
