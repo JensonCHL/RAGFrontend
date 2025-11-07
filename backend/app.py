@@ -1087,6 +1087,7 @@ def process_documents():
             document_ids = []
             try:
                 print("DEBUG: Entered generate() try block.", flush=True)
+                print(f"DEBUG: Files to process: {files}", flush=True)
                 # Process each file
                 for file_idx, file_name in enumerate(files):
                     import urllib.parse
