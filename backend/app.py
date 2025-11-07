@@ -1065,6 +1065,7 @@ def health_check():
 
 @app.route('/api/process-documents', methods=['POST'])
 def process_documents():
+    print("DEBUG: Received request to /api/process-documents")
     """
     Process documents through all 3 steps: OCR -> Embedding -> Ingestion
     Expects JSON with company_id and files list
