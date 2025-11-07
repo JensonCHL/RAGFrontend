@@ -14,4 +14,4 @@ RUN npm install
 EXPOSE 3000
 
 # Command to start the development server
-CMD ["npm", "run", "start"]
+CMD ["npm", "run", "dev"]

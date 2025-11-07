@@ -41,7 +41,7 @@ function DashboardPage() {
     // Only set up SSE if we're showing processing states
     if (showProcessingStates) {
       const setupEventSource = () => {
-        eventSource = new EventSource('http://backend:5001/events/processing-updates');
+        eventSource = new EventSource('/api/proxy/events/processing-updates');
         
         eventSource.onmessage = (event) => {
           try {
@@ -82,7 +82,7 @@ function DashboardPage() {
       setError(null);
       
       // Single call to get all companies with their documents
-      const response = await fetch('http://backend:5001/api/companies-with-documents');
+      const response = await fetch('/api/proxy/api/companies-with-documents');
       const data = await response.json();
       
       if (data.success) {
@@ -175,7 +175,7 @@ function DashboardPage() {
     try {
       setDeleting({ company: companyName });
       
-      const response = await fetch(`http://backend:5001/api/companies/${companyName}`, {
+      const response = await fetch(`/api/proxy/api/companies/${companyName}`, {
         method: 'DELETE',
       });
       
@@ -204,7 +204,7 @@ function DashboardPage() {
     try {
       setDeleting({ company: companyName, document: documentName });
       
-      const response = await fetch(`http://backend:5001/api/companies/${companyName}/documents/${encodeURIComponent(documentName)}`, {
+      const response = await fetch(`/api/proxy/api/companies/${companyName}/documents/${encodeURIComponent(documentName)}`, {
         method: 'DELETE',
       });
       
@@ -291,7 +291,7 @@ function DashboardPage() {
       // Delete companies
       for (const companyName of selectedCompanies) {
         setDeleting({ company: companyName });
-        const response = await fetch(`http://backend:5001/api/companies/${companyName}`, {
+        const response = await fetch(`/api/proxy/api/companies/${companyName}`, {
           method: 'DELETE',
         });
         
@@ -307,7 +307,7 @@ function DashboardPage() {
       // Delete documents
       for (const { company, document } of selectedDocuments) {
         setDeleting({ company, document });
-        const response = await fetch(`http://backend:5001/api/companies/${company}/documents/${encodeURIComponent(document)}`, {
+        const response = await fetch(`/api/proxy/api/companies/${company}/documents/${encodeURIComponent(document)}`, {
           method: 'DELETE',
         });
         

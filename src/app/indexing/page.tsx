@@ -39,7 +39,7 @@ export function IndexingPage() {
   // Function to fetch data from the database
   const fetchData = async () => {
     try {
-      const response = await fetch('http://backend:5001/api/get-all-data');
+      const response = await fetch('/api/proxy/api/get-all-data');
       const result = await response.json();
       if (result.success) {
         setTableData(result.data);
@@ -68,12 +68,11 @@ export function IndexingPage() {
     // Fetch initial data on mount
     fetchData();
 
-    const eventSource = new EventSource('http://backend:5001/events/processing-updates');
+    const eventSource = new EventSource('/api/proxy/events/processing-updates');
 
     eventSource.onmessage = (event) => {
       try {
-        const data = JSON.parse(event.data);
-        if (data.type === 'indexing_status') {
+        const data = JSON.parse(event.data);        if (data.type === 'indexing_status') {
           setStatusMessages(prev => [...prev, data.message]);
           if (data.message.includes('Job complete') || data.message.includes('Job failed')) {
             setIsIndexing(false);
@@ -112,7 +111,7 @@ export function IndexingPage() {
     setError(null);
 
     try {
-      const response = await fetch('http://backend:5001/api/create-index', {
+      const response = await fetch('/api/proxy/api/create-index', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -144,7 +143,7 @@ export function IndexingPage() {
     setError(null);
 
     try {
-      const response = await fetch(`http://backend:5001/api/index/${indexToDelete}` , {
+      const response = await fetch(`/api/proxy/api/index/${indexToDelete}` , {
         method: 'DELETE',
       });
 
