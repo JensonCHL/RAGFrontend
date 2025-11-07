@@ -11,7 +11,8 @@ RUN apk add --no-cache \
     openssl-dev \
     python3-dev \
     musl-dev \
-    gcc
+    gcc \
+    postgresql-dev
 
 # Set up working directory
 WORKDIR /app
@@ -19,10 +20,14 @@ WORKDIR /app
 # Create and activate virtual environment
 RUN python3 -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
+ENV VIRTUAL_ENV="/opt/venv"
+
+# Upgrade pip
+RUN pip install --upgrade pip
 
 # Copy and install Python dependencies first (for backend services)
 COPY backend/requirements.txt ./backend/
-RUN pip install --no-cache-dir -r backend/requirements.txt
+RUN pip install --no-cache-dir --break-system-packages -r backend/requirements.txt
 
 # Copy and install Node.js dependencies
 COPY package*.json ./
