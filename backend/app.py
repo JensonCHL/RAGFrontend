@@ -1065,7 +1065,7 @@ def health_check():
 
 @app.route('/api/process-documents', methods=['POST'])
 def process_documents():
-    print("DEBUG: Received request to /api/process-documents")
+    print("DEBUG: Received request to /api/process-documents", flush=True)
     """
     Process documents through all 3 steps: OCR -> Embedding -> Ingestion
     Expects JSON with company_id and files list
@@ -1433,19 +1433,13 @@ def process_documents():
                     except OSError as e:
                         print(f"ERROR: Failed to remove log file {log_file_path}: {e}")
 
-        # --- Start processing in the foreground for debugging ---
-        # This will block the request, but will show us the print statements
-        for _ in generate():
-            pass
+        def start_processing_in_background():
+            for _ in generate():
+                pass
 
-        # --- Original background processing code (commented out for debugging) ---
-        # def start_processing_in_background():
-        #     for _ in generate():
-        #         pass
-
-        # processing_thread = threading.Thread(target=start_processing_in_background)
-        # processing_thread.daemon = True
-        # processing_thread.start()
+        processing_thread = threading.Thread(target=start_processing_in_background)
+        processing_thread.daemon = True
+        processing_thread.start()
 
         return jsonify({
             'success': True,
