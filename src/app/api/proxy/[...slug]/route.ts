@@ -40,15 +40,23 @@ async function proxyRequest(req: NextRequest, slug: string[]) {
   }
 }
 
-export async function GET(req: NextRequest, { params }: { params?: { slug?: string[] } }) {
-  return proxyRequest(req, params?.slug || [])
+// Each route handler must `await` params in Next.js 14+
+export async function GET(req: NextRequest, context: { params: Promise<{ slug?: string[] }> }) {
+  const { slug } = await context.params
+  return proxyRequest(req, slug || [])
 }
-export async function POST(req: NextRequest, { params }: { params?: { slug?: string[] } }) {
-  return proxyRequest(req, params?.slug || [])
+
+export async function POST(req: NextRequest, context: { params: Promise<{ slug?: string[] }> }) {
+  const { slug } = await context.params
+  return proxyRequest(req, slug || [])
 }
-export async function PUT(req: NextRequest, { params }: { params?: { slug?: string[] } }) {
-  return proxyRequest(req, params?.slug || [])
+
+export async function PUT(req: NextRequest, context: { params: Promise<{ slug?: string[] }> }) {
+  const { slug } = await context.params
+  return proxyRequest(req, slug || [])
 }
-export async function DELETE(req: NextRequest, { params }: { params?: { slug?: string[] } }) {
-  return proxyRequest(req, params?.slug || [])
+
+export async function DELETE(req: NextRequest, context: { params: Promise<{ slug?: string[] }> }) {
+  const { slug } = await context.params
+  return proxyRequest(req, slug || [])
 }
