@@ -287,8 +287,9 @@ def create_index_endpoint():
             return jsonify({'success': False, 'error': 'Invalid API Key'}), 401
 
     # --- Original logic continues if authentication is successful ---
-    data = request.get_json()
-    index_name = data.get('index_name')
+    # data = request.get_json()
+    # index_name = data.get('index_name')
+    index_name = request.args.get('index_name')
 
     if not index_name:
         return jsonify({'success': False, 'error': 'Missing index_name'}), 400

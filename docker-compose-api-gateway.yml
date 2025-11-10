@@ -1,0 +1,25 @@
+version: '3.8'
+
+services:
+  api_gateway:
+    build:
+      context: .
+      dockerfile: docker/n8n_API.Dockerfile
+    container_name: api-gateway
+    image: api-gateway
+    ports:
+      - "5000:5000"
+    env_file:
+      - .env
+    environment:
+      - FLASK_APP=n8n_API.py
+      - FLASK_DEBUG=1
+      - INTERNAL_API_BASE_URL=http://localhost:5001
+    volumes:
+      - ./backend:/app
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge
