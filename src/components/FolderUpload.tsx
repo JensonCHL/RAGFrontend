@@ -66,9 +66,27 @@ export default function FolderUpload({ onFolderUpload }: FolderUploadProps) {
       return;
     }
 
+    // Clear any previous errors
+    setError(null);
+
     // Process each folder
+    let successCount = 0;
+    let failCount = 0;
+    
     for (const folderEntry of folderEntries) {
-      await processFolderEntry(folderEntry);
+      try {
+        await processFolderEntry(folderEntry);
+        successCount++;
+      } catch (err) {
+        console.error('Error processing folder:', folderEntry.name, err);
+        failCount++;
+      }
+    }
+    
+    // Show summary if there were failures
+    if (failCount > 0) {
+      const message = `Processed ${successCount} folders successfully. ${failCount} folders had issues.`;
+      setError(message);
     }
   };
 
@@ -116,7 +134,8 @@ export default function FolderUpload({ onFolderUpload }: FolderUploadProps) {
       await getAllPdfFiles(folderEntry, allPdfFiles);
 
       if (allPdfFiles.length === 0) {
-        setError(`No PDF files found in folder "${folderEntry.name}" and its subfolders`);
+        console.warn(`No PDF files found in folder "${folderEntry.name}" and its subfolders`);
+        // Continue processing other folders instead of stopping
         return;
       }
 
@@ -128,8 +147,9 @@ export default function FolderUpload({ onFolderUpload }: FolderUploadProps) {
       // Use directory name as company name (convert to uppercase)
       onFolderUpload(folderEntry.name.toUpperCase(), allPdfFiles);
     } catch (err) {
-      console.error('Error processing folder:', err);
-      setError('Failed to process folder. Please try again.');
+      console.error('Error processing folder:', folderEntry.name, err);
+      // Log error but continue processing other folders
+      // Don't set global error that stops everything
     }
   };
 
