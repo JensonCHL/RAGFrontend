@@ -120,10 +120,10 @@ export default function FolderUpload({ onFolderUpload }: FolderUploadProps) {
         return;
       }
 
-      if (allPdfFiles.length > 20) {
-        setError(`Too many PDF files (${allPdfFiles.length}) found. Please ensure folder contains maximum of 20 PDF files.`);
-        return;
-      }
+      // if (allPdfFiles.length > 20) {
+      //   setError(`Too many PDF files (${allPdfFiles.length}) found. Please ensure folder contains maximum of 20 PDF files.`);
+      //   return;
+      // }
 
       // Use directory name as company name (convert to uppercase)
       onFolderUpload(folderEntry.name.toUpperCase(), allPdfFiles);
