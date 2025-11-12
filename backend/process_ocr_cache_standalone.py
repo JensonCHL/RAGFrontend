@@ -300,13 +300,13 @@ def main():
     print(f"Embedding Model: {EMBED_MODEL}")
     
     # Validate configuration
-    if not all([QDRANT_URL, QDRANT_API_KEY, DEKA_KEY, DEKA_BASE]):
-        print("❌ Missing required environment variables:")
-        if not QDRANT_URL: print("  - QDRANT_URL")
-        if not QDRANT_API_KEY: print("  - QDRANT_API_KEY")
-        if not DEKA_KEY: print("  - DEKA_KEY")
-        if not DEKA_BASE: print("  - DEKA_BASE_URL")
-        return
+    # if not all([QDRANT_URL, QDRANT_API_KEY, DEKA_KEY, DEKA_BASE]):
+    #     print("❌ Missing required environment variables:")
+    #     if not QDRANT_URL: print("  - QDRANT_URL")
+    #     if not QDRANT_API_KEY: print("  - QDRANT_API_KEY")
+    #     if not DEKA_KEY: print("  - DEKA_KEY")
+    #     if not DEKA_BASE: print("  - DEKA_BASE_URL")
+    #     return
     
     # Find all JSON files
     json_files = find_all_json_files()
