@@ -73,7 +73,7 @@ def build_embedder():
     )
 
 def generate_embeddings_standalone(chunks_data, doc_id):
-    """Generate embeddings for document chunks with progress tracking - standalone implementation"""
+    """Generate embeddings for document chunks one by one - standalone implementation"""
     try:
         print("  Building embedder...")
         embedder = build_embedder()
@@ -91,21 +91,18 @@ def generate_embeddings_standalone(chunks_data, doc_id):
         BATCH_SIZE = int(os.getenv("BATCH_SIZE", "64"))
         vectors = []
 
-        for i in range(0, total_chunks, BATCH_SIZE):
-            batch = texts[i:i + BATCH_SIZE]
-            batch_num = (i // BATCH_SIZE) + 1
-            total_batches = (total_chunks + BATCH_SIZE - 1) // BATCH_SIZE
-
-            print(f"    Processing batch {batch_num}/{total_batches}...")
-
+        # Process each chunk individually
+        for i, text in enumerate(texts):
+            print(f"    Processing chunk {i+1}/{total_chunks}...")
+            
             try:
-                # Generate embeddings for batch
-                batch_vectors = embedder.embed_documents(batch)
-                vectors.extend(batch_vectors)
-                print(f"    ✅ Completed batch {batch_num}/{total_batches} ({len(batch_vectors)} embeddings)")
-
+                # Generate embedding for single text
+                vector = embedder.embed_query(text)
+                vectors.append(vector)
+                print(f"    ✅ Completed chunk {i+1}/{total_chunks}")
+                
             except Exception as e:
-                print(f"    ❌ Failed to generate embeddings for batch {batch_num}: {str(e)}")
+                print(f"    ❌ Failed to generate embedding for chunk {i+1}: {str(e)}")
                 return []
 
         # Prepare final result with IDs and payloads
@@ -122,8 +119,8 @@ def generate_embeddings_standalone(chunks_data, doc_id):
                     "metadata": chunk.get("meta", {})
                 }
             })
-            print(f"    vector: {vectors[i]}")
-            print(f"    vector: {len(vectors[i])}")
+            print(f"    Vector dimension: {len(vectors[i])}")
+            
         print(f"  ✅ Generated {len(vectors)} embeddings")
         return result_data
 
