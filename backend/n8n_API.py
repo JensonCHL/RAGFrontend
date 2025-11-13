@@ -11,6 +11,7 @@ from qdrant_client import QdrantClient
 from qdrant_client.http import models as rest
 import os
 from dotenv import load_dotenv # Import load_dotenv
+from langchain_openai import OpenAIEmbeddings
 # Load .env from project root
 project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 env_path = os.path.join(project_root, '.env')
@@ -38,6 +39,11 @@ QDRANT_URL = os.getenv("QDRANT_URL")
 QDRANT_API_KEY = os.getenv("QDRANT_API_KEY")
 QDRANT_COLLECTION = os.getenv("QDRANT_COLLECTION")
 
+# Deka AI Configuration from .env (for consistent embeddings)
+DEKA_BASE = os.getenv("DEKA_BASE_URL")
+DEKA_KEY = os.getenv("DEKA_KEY")
+EMBED_MODEL = os.getenv("EMBED_MODEL", "baai/bge-multilingual-gemma2")
+
 # API Key for authentication
 API_KEY = os.getenv("DOCUMENT_API_KEY")
 
@@ -50,29 +56,41 @@ if API_KEY:
 app = Flask(__name__)
 CORS(app)  # Enable CORS for all routes
 
-def require_api_key(f):
-    """Decorator to require API key for protected endpoints"""
-    def decorated_function(*args, **kwargs):
-        # Skip API key check for health endpoint
-        if request.endpoint == 'health_check':
-            return f(*args, **kwargs)
+def build_embedder():
+    """Build OpenAI embeddings compatible with Deka AI - consistent with app.py"""
+    if not DEKA_KEY or not DEKA_BASE:
+        return None
+
+    return OpenAIEmbeddings(
+        api_key=DEKA_KEY,
+        base_url=DEKA_BASE,
+        model=EMBED_MODEL,
+        model_kwargs={"encoding_format": "float"}
+    )
+
+# def require_api_key(f):
+#     """Decorator to require API key for protected endpoints"""
+#     def decorated_function(*args, **kwargs):
+#         # Skip API key check for health endpoint
+#         if request.endpoint == 'health_check':
+#             return f(*args, **kwargs)
         
-        # Debug information
-        print(f"Request endpoint: {request.endpoint}")
-        print(f"API_KEY from env: {'Set' if API_KEY else 'Not set'}")
+#         # Debug information
+#         print(f"Request endpoint: {request.endpoint}")
+#         print(f"API_KEY from env: {'Set' if API_KEY else 'Not set'}")
         
-        key = request.headers.get('X-API-Key') or request.args.get('api_key')
-        print(f"Provided key: {'Present' if key else 'Missing'}")
-        if key:
-            print(f"Key comparison: {key == API_KEY}")
+#         key = request.headers.get('X-API-Key') or request.args.get('api_key')
+#         print(f"Provided key: {'Present' if key else 'Missing'}")
+#         if key:
+#             print(f"Key comparison: {key == API_KEY}")
         
-        if not key or key != API_KEY:
-            print("Authentication failed - aborting")
-            abort(401, description="Unauthorized: Invalid or missing API key")
-        print("Authentication successful")
-        return f(*args, **kwargs)
-    decorated_function.__name__ = f.__name__
-    return decorated_function
+#         if not key or key != API_KEY:
+#             print("Authentication failed - aborting")
+#             abort(401, description="Unauthorized: Invalid or missing API key")
+#         print("Authentication successful")
+#         return f(*args, **kwargs)
+#     decorated_function.__name__ = f.__name__
+#     return decorated_function
 
 def get_documents_by_company():
     """
@@ -378,6 +396,75 @@ def get_documents_by_company_name(company_name):
             return jsonify({"error": f"No documents found for company: {company_name}"}), 404
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+@app.route('/api/search', methods=['GET'])
+@require_api_key
+def search_documents():
+    """Search documents using consistent embedding pipeline"""
+    try:
+        # Get query parameters
+        query = request.args.get('query')
+        limit = request.args.get('limit', 5, type=int)
+        # company_filter = request.args.get('company')
+        
+        if not query:
+            return jsonify({"error": "Missing 'query' parameter"}), 400
+        
+        # Build embedder (same as in app.py)
+        embedder = build_embedder()
+        if not embedder:
+            return jsonify({"error": "Embedder not configured"}), 500
+        
+        # Generate query vector
+        query_vector = embedder.embed_query(query)
+        
+        # Connect to Qdrant
+        client = QdrantClient(url=QDRANT_URL, api_key=QDRANT_API_KEY)
+        
+        # Build filter if company specified
+        search_filter = None
+        # if company_filter:
+        #     search_filter = rest.Filter(
+        #         must=[
+        #             rest.FieldCondition(
+        #                 key="metadata.company",
+        #                 match=rest.MatchValue(value=company_filter)
+        #             )
+        #         ]
+        #     )
+        
+        # Perform search
+        results = client.search(
+            collection_name=QDRANT_COLLECTION,
+            query_vector=query_vector,
+            limit=limit,
+            with_payload=True,
+            with_vectors=False,
+            # query_filter=search_filter
+        )
+        
+        # Format results
+        formatted_results = []
+        for result in results:
+            formatted_results.append({
+                "id": result.id,
+                "score": result.score,
+                "content": result.payload.get("content", ""),
+                "metadata": result.payload.get("metadata", {}),
+                "company": result.payload.get("metadata", {}).get("company", "Unknown"),
+                "source": result.payload.get("metadata", {}).get("source", "Unknown"),
+                "page": result.payload.get("metadata", {}).get("page", "Unknown")
+            })
+        
+        return jsonify({
+            "success": True,
+            "query": query,
+            "results": formatted_results,
+            "count": len(formatted_results)
+        })
+        
+    except Exception as e:
+        return jsonify({"error": f"Search failed: {str(e)}"}), 500
 
 
 if __name__ == '__main__':
