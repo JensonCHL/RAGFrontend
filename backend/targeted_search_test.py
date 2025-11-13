@@ -20,7 +20,7 @@ load_dotenv()
 # Configuration
 QDRANT_URL = os.getenv("QDRANT_URL")
 QDRANT_API_KEY = os.getenv("QDRANT_API_KEY")
-QDRANT_COLLECTION = "DataStreamLit"  # Focus on this collection
+QDRANT_COLLECTION = "BadResult"  # Focus on this collection
 DEKA_KEY = os.getenv("DEKA_KEY")
 DEKA_BASE = os.getenv("DEKA_BASE_URL")
 EMBED_MODEL = os.getenv("EMBED_MODEL", "baai/bge-multilingual-gemma2")
@@ -97,27 +97,27 @@ def test_targeted_search():
                 print(f"      Company: {company}")
                 print(f"      Document: {source}")
                 
-        # Test with filtering
-        print("\n--- FILTERED SEARCH TEST ---")
-        search_filter = rest.Filter(
-            must=[
-                rest.FieldCondition(
-                    key="metadata.company",
-                    match=rest.MatchValue(value="AIRNAV")
-                ),
-                rest.FieldCondition(
-                    key="metadata.source",
-                    match=rest.MatchValue(value="PURCHASE ORDER DEKA GPU PERUM LEMBAGA PENYELENGGARA PELAYANAN NAVIGASI PENERBANGAN INDONESI.pdf")
-                )
-            ]
-        )
+        # # Test with filtering
+        # print("\n--- FILTERED SEARCH TEST ---")
+        # search_filter = rest.Filter(
+        #     must=[
+        #         rest.FieldCondition(
+        #             key="metadata.company",
+        #             match=rest.MatchValue(value="AIRNAV")
+        #         ),
+        #         rest.FieldCondition(
+        #             key="metadata.source",
+        #             match=rest.MatchValue(value="PURCHASE ORDER DEKA GPU PERUM LEMBAGA PENYELENGGARA PELAYANAN NAVIGASI PENERBANGAN INDONESI.pdf")
+        #         )
+        #     ]
+        # )
         
         results = client.search(
             collection_name=QDRANT_COLLECTION,
             query_vector=query_vector,
             limit=5,
             with_payload=True,
-            query_filter=search_filter,
+            # query_filter=search_filter,
             search_params=rest.SearchParams(exact=False, hnsw_ef=256)
         )
         
