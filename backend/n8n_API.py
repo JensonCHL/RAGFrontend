@@ -443,22 +443,27 @@ def search_documents():
             # query_filter=search_filter
         )
         
-        # Format results
+        # Format results with limited metadata
         formatted_results = []
         for result in results:
+            # Extract only the specified metadata fields
+            metadata = result.payload.get("metadata", {})
+            limited_metadata = {
+                "company": metadata.get("company", "Unknown"),
+                "page": metadata.get("page", "Unknown"),
+                "source": metadata.get("source", "Unknown"),
+                "words": metadata.get("words", 0)
+            }
+            
             formatted_results.append({
-                "id": result.id,
                 "score": result.score,
                 "content": result.payload.get("content", ""),
-                "metadata": result.payload.get("metadata", {}),
-                "company": result.payload.get("metadata", {}).get("company", "Unknown"),
-                "source": result.payload.get("metadata", {}).get("source", "Unknown"),
-                "page": result.payload.get("metadata", {}).get("page", "Unknown")
+                "metadata": limited_metadata
             })
         
         return jsonify({
             "success": True,
-            "query": query,
+            # "query": query,
             "results": formatted_results,
             "count": len(formatted_results)
         })
