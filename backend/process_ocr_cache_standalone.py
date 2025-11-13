@@ -122,7 +122,8 @@ def generate_embeddings_standalone(chunks_data, doc_id):
                     "metadata": chunk.get("meta", {})
                 }
             })
-
+            print(f"    vector: {vectors[i]}")
+            print(f"    vector: {len(vectors[i])}")
         print(f"  ✅ Generated {len(vectors)} embeddings")
         return result_data
 
