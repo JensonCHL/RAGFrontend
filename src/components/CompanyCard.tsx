@@ -242,35 +242,32 @@ export default function CompanyCard({
             </div>
           </div>
           <div className="flex items-center ml-2 flex-shrink-0">
-            {isAnyDocumentProcessing ? (
+            {isAnyDocumentInError ? (
               <div className="flex items-center">
                 <div className="flex flex-col">
                   <div className="flex items-center">
-                    {isAnyDocumentInError ? (
-                      <>
-                        <div className="w-3 h-3 rounded-full bg-red-500 mr-2"></div>
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                          Error
-                        </span>
-                      </>
-                    ) : (
-                      <>
-                        <LoadingSpinner size="small" color="#2563eb" className="mr-2" />
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                          Processing...
-                        </span>
-                      </>
-                    )}
+                    <div className="w-3 h-3 rounded-full bg-red-500 mr-2"></div>
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                      Error
+                    </span>
                   </div>
-                  {isAnyDocumentInError ? (
-                    <span className="text-xs text-red-500 truncate max-w-[120px]" title={companyProcessingStates.find(s => s.isError)?.errorMessage}>
-                      {companyProcessingStates.find(s => s.isError)?.errorMessage}
+                  <span className="text-xs text-red-500 truncate max-w-[120px]" title="Please reload the page to retry">
+                    Please reload
+                  </span>
+                </div>
+              </div>
+            ) : isAnyDocumentProcessing ? (
+              <div className="flex items-center">
+                <div className="flex flex-col">
+                  <div className="flex items-center">
+                    <LoadingSpinner size="small" color="#2563eb" className="mr-2" />
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                      Processing...
                     </span>
-                  ) : (
-                    <span className="text-xs text-gray-500 truncate max-w-[120px]">
-                      {companyProcessingStates.filter(s => s.isProcessing).length} file(s) processing
-                    </span>
-                  )}
+                  </div>
+                  <span className="text-xs text-gray-500 truncate max-w-[120px]">
+                    {companyProcessingStates.filter(s => s.isProcessing).length} file(s) processing
+                  </span>
                 </div>
               </div>
             ) : syncStatus.hasUnsynced ? (
@@ -283,8 +280,13 @@ export default function CompanyCard({
                     e.stopPropagation();
                     onProcessUnsynced(company.id);
                   }}
-                  className="p-1 bg-green-600 hover:bg-green-700 text-white rounded-lg transition duration-150 ease-in-out"
-                  title="Process unsynced documents"
+                  disabled={isAnyDocumentInError}
+                  className={`p-1 rounded-lg transition duration-150 ease-in-out ${
+                    isAnyDocumentInError 
+                      ? 'bg-gray-400 text-gray-200 cursor-not-allowed' 
+                      : 'bg-green-600 hover:bg-green-700 text-white'
+                  }`}
+                  title={isAnyDocumentInError ? "Cannot process due to errors" : "Process unsynced documents"}
                 >
                   <svg
                     className="w-4 h-4"

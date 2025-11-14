@@ -104,6 +104,7 @@ function FileManagementPage() {
     }
 
     let eventSource: EventSource | null = null;
+    let qdrantUpdateTimeout: NodeJS.Timeout | null = null;
 
     const setupEventSource = () => {
       eventSource = new EventSource('/api/proxy/events/processing-updates');
@@ -117,10 +118,19 @@ function FileManagementPage() {
             const newStates = convertKeysToCamelCase(data.states);
             setProcessingStates(prev => ({ ...prev, ...newStates }));
           } else if (data.type === 'qdrant_data_updated') {
-            // Update qdrantData directly from the SSE message
-            const newQdrantData = convertKeysToCamelCase(data.data);
-            setQdrantData(newQdrantData);
-            console.log('Qdrant data updated via SSE:', newQdrantData);
+            // Only update Qdrant data for file management context
+            if (data.context === "file_management" || data.context === "general") {
+              // Debounce Qdrant data updates to prevent excessive re-renders
+              if (qdrantUpdateTimeout) {
+                clearTimeout(qdrantUpdateTimeout);
+              }
+              
+              qdrantUpdateTimeout = setTimeout(() => {
+                const newQdrantData = convertKeysToCamelCase(data.data);
+                setQdrantData(newQdrantData);
+                console.log('Qdrant data updated via SSE:', newQdrantData);
+              }, 300); // 300ms debounce
+            }
           } else if (data.type === 'page_started' || data.type === 'page_completed') {
             // Update page-level progress for the specific document
             setProcessingStates(prev => {
@@ -159,6 +169,9 @@ function FileManagementPage() {
     return () => {
       if (eventSource) {
         eventSource.close();
+      }
+      if (qdrantUpdateTimeout) {
+        clearTimeout(qdrantUpdateTimeout);
       }
     };
   }, [isInitialLoad]);
