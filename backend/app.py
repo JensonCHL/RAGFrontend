@@ -1386,8 +1386,8 @@ def process_documents():
                             })
                     save_processing_states(company_id, processing_states)
                 
-                # Notify frontend to refresh its Qdrant data now that the whole job is done
-                notify_qdrant_data_update()
+                # Removed automatic Qdrant data refresh - user will manually refresh if needed
+                # notify_qdrant_data_update("file_management")
 
                 yield json.dumps({
                     "status": "all_completed",

@@ -22,6 +22,8 @@ interface QdrantCompany {
 
 function DashboardPage() {
   const [qdrantCompanies, setQdrantCompanies] = useState<QdrantCompany[]>([]);
+  const [indexes, setIndexes] = useState<string[]>([]);
+  // const [indexes, setIndexes] = useState<string[]>([]); // New state for indexes
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<{company?: string, document?: string}>({});
@@ -34,6 +36,7 @@ function DashboardPage() {
   // Fetch all Qdrant data on page load
   useEffect(() => {
     fetchQdrantData();
+    fetchIndexes(); // Fetch indexes on page load
     
     // Set up SSE for real-time processing updates
     let eventSource: EventSource | null = null;
@@ -51,11 +54,7 @@ function DashboardPage() {
             if (data.type === 'states_updated') {
               // Refresh Qdrant data when processing states change
               fetchQdrantData();
-            } else if (data.type === 'qdrant_data_updated') {
-              // Only update for general context or dashboard context
-              if (data.context === "general" || data.context === "dashboard" || !data.context) {
-                fetchQdrantData();
-              }
+              fetchIndexes(); // Also refresh indexes when processing states change
             }
           } catch (error) {
             console.error('Failed to parse SSE message:', error);
@@ -107,6 +106,21 @@ function DashboardPage() {
       console.error('Error fetching Qdrant data:', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Fetch index information
+  const fetchIndexes = async () => {
+    try {
+      const response = await fetch('/api/proxy/api/list-indexes');
+      const data = await response.json();
+
+      if (data.index_names) {
+        setIndexes(data.index_names);
+      }
+    } catch (err) {
+      console.error('Error fetching indexes:', err);
+      // Don't set error state for indexes as it's not critical
     }
   };
 
@@ -373,19 +387,19 @@ function DashboardPage() {
   };
 
   return (
-    <div className="min-h-screen bg-cover bg-center bg-no-repeat p-4 md:p-8" style={{ backgroundImage: "url('/Cloudeka.png')" }}>
+    <div className="min-h-screen bg-gray-50 p-8">
       <div className="max-w-4xl mx-auto">
         <header className="mb-8">
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 p-6 bg-white/15 backdrop-blur-1xl rounded-2xl border border-white/20 shadow-xl">
+          <div className="flex justify-between items-center">
             <div>
-              <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Document Processing Dashboard</h1>
-              <p className="text-gray-700 mt-2">
+              <h1 className="text-3xl font-bold text-gray-900">Document Processing Dashboard</h1>
+              <p className="text-gray-600 mt-2">
                 View processed documents and manage your ingestion workflow
               </p>
             </div>
             <Link 
               href="/file-management"
-              className="inline-flex items-center px-4 py-2 bg-white/20 backdrop-blur-md border border-white/30 text-sm font-medium rounded-xl text-gray-800 hover:bg-white/30 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-300 shadow-lg"
+              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
             >
               <svg className="mr-2 -ml-1 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
@@ -396,38 +410,38 @@ function DashboardPage() {
         </header>
 
         {/* Summary Statistics */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <div className="bg-white/10 backdrop-blur-1xl rounded-2xl border border-white/10 shadow-xl p-6 hover:bg-white/30 transition-all duration-300">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+          <div className="bg-white rounded-lg shadow p-6">
             <div className="flex items-center">
-              <div className="rounded-full bg-blue-100/30 backdrop-blur-sm p-3 border border-white/20">
+              <div className="rounded-full bg-blue-100 p-3">
                 <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
                 </svg>
               </div>
               <div className="ml-4">
-                <h3 className="text-sm font-medium text-gray-600">Total Companies</h3>
+                <h3 className="text-sm font-medium text-gray-500">Companies</h3>
                 <p className="text-2xl font-semibold text-gray-900">{qdrantCompanies.length}</p>
               </div>
             </div>
           </div>
           
-          <div className="bg-white/10 backdrop-blur-1xl rounded-2xl border border-white/20 shadow-xl p-6 hover:bg-white/20 transition-all duration-300">
+          <div className="bg-white rounded-lg shadow p-6">
             <div className="flex items-center">
-              <div className="rounded-full bg-green-100/30 backdrop-blur-sm p-3 border border-white/20">
+              <div className="rounded-full bg-green-100 p-3">
                 <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
                 </svg>
               </div>
               <div className="ml-4">
-                <h3 className="text-sm font-medium text-gray-600">Total Documents</h3>
+                <h3 className="text-sm font-medium text-gray-500">Documents</h3>
                 <p className="text-2xl font-semibold text-gray-900">{summaryStats.totalDocuments}</p>
               </div>
             </div>
           </div>
           
-          <div className="bg-white/10 backdrop-blur-1xl rounded-2xl border border-white/20 shadow-xl p-6 hover:bg-white/20 transition-all duration-300">
+          <div className="bg-white rounded-lg shadow p-6">
             <div className="flex items-center">
-              <div className="rounded-full bg-purple-100/30 backdrop-blur-sm p-3 border border-white/20">
+              <div className="rounded-full bg-purple-100 p-3">
                 <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18M3 16h4m10 0h4M4 20h16a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z"></path>
                 </svg>
@@ -438,7 +452,38 @@ function DashboardPage() {
               </div>
             </div>
           </div>
+
+          <div className="bg-white rounded-lg shadow p-6">
+            <div className="flex items-center">
+              <div className="rounded-full bg-yellow-100 p-3">
+                <svg className="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path>
+                </svg>
+              </div>
+              <div className="ml-4">
+                <h3 className="text-sm font-medium text-gray-500">Total Indexes</h3>
+                <p className="text-2xl font-semibold text-gray-900">{indexes.length}</p>
+              </div>
+            </div>
+          </div>
         </div>
+
+        {/* Index Information */}
+        {indexes.length > 0 && (
+          <div className="bg-white rounded-lg shadow p-6 mb-8">
+            <h3 className="text-lg font-medium text-gray-900 mb-4">Active Indexes</h3>
+            <div className="flex flex-wrap gap-2">
+              {indexes.map((index, idx) => (
+                <span 
+                  key={idx} 
+                  className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800"
+                >
+                  {index}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Search and Controls */}
         <div className="mb-6">
@@ -451,7 +496,7 @@ function DashboardPage() {
               </div>
               <input
                 type="text"
-                className="block w-full pl-10 pr-3 py-2 bg-white/20 backdrop-blur-md border border-white/30 rounded-xl leading-5 placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm shadow-lg"
+                className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                 placeholder="Search companies or documents..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -460,10 +505,10 @@ function DashboardPage() {
             <div className="flex space-x-2">
               <button 
                 onClick={() => setIsSelecting(!isSelecting)}
-                className={`inline-flex items-center px-4 py-2 bg-white/20 backdrop-blur-md border border-white/30 text-sm font-medium rounded-xl focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-300 shadow-lg ${
+                className={`inline-flex items-center px-4 py-2 border text-sm font-medium rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 ${
                   isSelecting 
-                    ? 'border-blue-300 text-blue-700 bg-blue-50 bg-opacity-50 backdrop-blur-sm hover:bg-blue-100' 
-                    : 'border-gray-300 text-gray-700 bg-gray-100 bg-opacity-50 backdrop-blur-sm hover:bg-gray-50'
+                    ? 'border-blue-300 text-blue-700 bg-blue-50 hover:bg-blue-100' 
+                    : 'border-gray-300 text-gray-700 bg-white hover:bg-gray-50'
                 }`}
               >
                 <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -475,7 +520,7 @@ function DashboardPage() {
                 <>
                   <button 
                     onClick={selectAll}
-                    className="inline-flex items-center px-4 py-2 bg-white/20 backdrop-blur-md border border-white/30 text-sm font-medium rounded-xl text-gray-700 hover:bg-gray-50/30 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-300 shadow-lg"
+                    className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                   >
                     Select All
                   </button>
@@ -484,8 +529,8 @@ function DashboardPage() {
                     disabled={Object.values(selectedItems).filter(Boolean).length === 0}
                     className={`inline-flex items-center px-4 py-2 border text-sm font-medium rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 ${
                       Object.values(selectedItems).filter(Boolean).length === 0
-                        ? 'border-gray-300 text-gray-400 bg-gray-100 bg-opacity-50 cursor-not-allowed'
-                        : 'border-red-300 text-red-700 bg-red-50 bg-opacity-50 backdrop-blur-sm hover:bg-red-100'
+                        ? 'border-gray-300 text-gray-400 bg-gray-100 cursor-not-allowed'
+                        : 'border-red-300 text-red-700 bg-red-50 hover:bg-red-100'
                     }`}
                   >
                     <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -496,8 +541,11 @@ function DashboardPage() {
                 </>
               )}
               <button 
-                onClick={fetchQdrantData}
-                className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-gray-100 bg-opacity-50 backdrop-blur-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                onClick={() => {
+                  fetchQdrantData();
+                  fetchIndexes();
+                }}
+                className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
               >
                 <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
@@ -513,14 +561,14 @@ function DashboardPage() {
           <h2 className="text-2xl font-bold text-gray-800 mb-6">Processed Documents</h2>
 
           {loading ? (
-            <div className="bg-white/15 backdrop-blur-2xl rounded-2xl border border-white/10 shadow-xl p-8 flex justify-center items-center">
+            <div className="bg-white rounded-lg shadow p-8 flex justify-center items-center">
               <div className="text-center">
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
                 <p className="mt-4 text-gray-600">Loading processed documents...</p>
               </div>
             </div>
           ) : error ? (
-            <div className="bg-white/15 backdrop-blur-2xl rounded-2xl border border-white/20 shadow-xl p-6">
+            <div className="bg-white rounded-lg shadow p-6">
               <div className="bg-red-50 border border-red-200 rounded-md p-4">
                 <div className="flex">
                   <div className="flex-shrink-0">
@@ -538,7 +586,7 @@ function DashboardPage() {
               </div>
             </div>
           ) : filteredCompanies.length === 0 ? (
-            <div className="bg-white/15 backdrop-blur-2xl rounded-2xl border border-white/20 shadow-xl p-8 text-center">
+            <div className="bg-white rounded-lg shadow p-8 text-center">
               <svg className="mx-auto h-16 w-16 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
               </svg>
@@ -564,7 +612,7 @@ function DashboardPage() {
           ) : (
             <div className="space-y-4">
               {filteredCompanies.map((company) => (
-                <div key={company.name} className="bg-white/10 backdrop-blur-1.5xl rounded-2xl border border-white/20 shadow-xl overflow-hidden hover:bg-white/35 transition-all duration-300">
+                <div key={company.name} className="bg-white rounded-lg shadow overflow-hidden">
                   <div className="p-6">
                     <div className="flex justify-between items-center">
                       <div className="flex items-center flex-grow">
@@ -707,4 +755,3 @@ export default function DashboardPageWithLayout() {
     </DefaultLayout>
   );
 }
-
