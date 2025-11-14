@@ -472,6 +472,89 @@ def search_documents():
         return jsonify({"error": f"Search failed: {str(e)}"}), 500
 
 
+@app.route('/api/documents/chunks', methods=['GET'])
+@require_api_key
+def get_document_chunks():
+    """
+    Retrieve all chunks for a specific company and document name.
+    Query parameters:
+    - company: Company name
+    - document: Document name
+    """
+    try:
+        # Get query parameters
+        company_name = request.args.get('company')
+        document_name = request.args.get('document')
+        
+        if not company_name or not document_name:
+            return jsonify({
+                "success": False, 
+                "error": "Missing required parameters: 'company' and 'document'"
+            }), 400
+
+        # Connect to Qdrant
+        client = QdrantClient(url=QDRANT_URL, api_key=QDRANT_API_KEY)
+
+        # Build filter for company and document
+        search_filter = rest.Filter(
+            must=[
+                rest.FieldCondition(
+                    key="metadata.company",
+                    match=rest.MatchValue(value=company_name)
+                ),
+                rest.FieldCondition(
+                    key="metadata.source",
+                    match=rest.MatchValue(value=document_name)
+                )
+            ]
+        )
+
+        # Retrieve all matching points
+        points = client.scroll(
+            collection_name=QDRANT_COLLECTION,
+            scroll_filter=search_filter,
+            limit=1000,  # Adjust as needed
+            with_payload=True,
+            with_vectors=False
+        )[0]  # Get points, ignore offset
+
+        # Sort points by page number
+        sorted_points = sorted(points, key=lambda p: p.payload.get("metadata", {}).get("page", 0))
+
+        # Format results
+        chunks = []
+        for point in sorted_points:
+            payload = point.payload or {}
+            metadata = payload.get("metadata", {})
+            
+            chunks.append({
+                "id": str(point.id),
+                "content": payload.get("content", ""),
+                "metadata": {
+                    "company": metadata.get("company", ""),
+                    "source": metadata.get("source", ""),
+                    "page": metadata.get("page", 0),
+                    "doc_id": metadata.get("doc_id", ""),
+                    "words": metadata.get("words", 0),
+                    "upload_time": metadata.get("upload_time", 0)
+                }
+            })
+
+        return jsonify({
+            "success": True,
+            "company": company_name,
+            "document": document_name,
+            "chunks": chunks,
+            "count": len(chunks)
+        }), 200
+
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "error": f"Failed to retrieve document chunks: {str(e)}"
+        }), 500
+
+
 if __name__ == '__main__':
     # This service will run on port 5000
     app.run(host='0.0.0.0', port=5000)
