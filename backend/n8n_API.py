@@ -528,15 +528,15 @@ def get_document_chunks():
             metadata = payload.get("metadata", {})
             
             chunks.append({
-                "id": str(point.id),
+                # "id": str(point.id),
                 "content": payload.get("content", ""),
                 "metadata": {
                     "company": metadata.get("company", ""),
                     "source": metadata.get("source", ""),
                     "page": metadata.get("page", 0),
-                    "doc_id": metadata.get("doc_id", ""),
+                    # "doc_id": metadata.get("doc_id", ""),
                     "words": metadata.get("words", 0),
-                    "upload_time": metadata.get("upload_time", 0)
+                    # "upload_time": metadata.get("upload_time", 0)
                 }
             })
 
