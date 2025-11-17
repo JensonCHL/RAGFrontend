@@ -1,9 +1,11 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { signIn } from 'next-auth/react';
 import Image from 'next/image';
+
+export const dynamic = 'force-dynamic'; // Disable static generation for this page
 
 export default function LoginPage() {
   console.log('LoginPage rendered');
@@ -12,6 +14,19 @@ export default function LoginPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const router = useRouter();
+  const searchParams = useSearchParams();
+
+  // Check for session expiration message
+  useEffect(() => {
+    const sessionExpired = searchParams.get('sessionExpired');
+    if (sessionExpired === 'true') {
+      setError('Your session has expired. Please log in again.');
+      // Clean up the session indicator
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('sessionStarted');
+      }
+    }
+  }, [searchParams]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -28,6 +43,10 @@ export default function LoginPage() {
       if (result?.error) {
         setError('Invalid username or password');
       } else {
+        // Set session indicator when logging in
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('sessionStarted', Date.now().toString());
+        }
         router.push('/dashboard');
         router.refresh();
       }

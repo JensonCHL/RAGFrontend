@@ -4,11 +4,38 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import { useSession, signOut } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
 
 export default function FloatingNavbar() {
+  const router = useRouter();
   const pathname = usePathname();
   const [isScrolled, setIsScrolled] = useState(false);
   const { data: session, status } = useSession();
+
+  // Check if this is a new browser session
+  useEffect(() => {
+    // Check if there's a session indicator in localStorage
+    const sessionStarted = localStorage.getItem('sessionStarted');
+
+    // If there's no session indicator, this might be a new browser session
+    if (!sessionStarted && status === 'authenticated') {
+      // Set session indicator
+      localStorage.setItem('sessionStarted', Date.now().toString());
+    }
+
+    // If we have a session but no indicator, it might mean browser was closed and reopened
+    if (status === 'authenticated' && !sessionStarted) {
+      // Force a session check
+      router.push('/login?sessionExpired=true');
+    }
+  }, [status, router]);
+
+  // Clean up session indicator on logout
+  useEffect(() => {
+    if (status === 'unauthenticated') {
+      localStorage.removeItem('sessionStarted');
+    }
+  }, [status]);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -20,13 +47,14 @@ export default function FloatingNavbar() {
   }, []);
 
   const handleLogout = async () => {
+    localStorage.removeItem('sessionStarted');
     await signOut({ callbackUrl: '/login' });
   };
 
   return (
     <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-      isScrolled 
-        ? 'bg-white shadow-lg backdrop-blur-sm bg-opacity-90' 
+      isScrolled
+        ? 'bg-white shadow-lg backdrop-blur-sm bg-opacity-90'
         : 'bg-white shadow'
     }`}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -56,11 +84,11 @@ export default function FloatingNavbar() {
               </Link>
             </div>
           </div>
-          
+
           {status === 'authenticated' && (
             <div className="flex items-center">
               <span className="text-sm text-gray-700 mr-4 hidden md:inline">
-                Welcome, {session.user?.username || session.user?.name}
+                Welcome, {(session.user as any)?.username || session.user?.name}
               </span>
               <button
                 onClick={handleLogout}

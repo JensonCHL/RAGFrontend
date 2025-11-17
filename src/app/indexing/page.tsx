@@ -26,7 +26,7 @@ type AccordionState = {
 
 import DefaultLayout from '../default-layout';
 
-export function IndexingPage() {
+function IndexingPageContent() {
   const [indexName, setIndexName] = useState('');
   // const [apiKey, setApiKey] = useState(''); // State for API Key
   const [isIndexing, setIsIndexing] = useState(false);
@@ -275,10 +275,10 @@ export function IndexingPage() {
     </div>
   );
 }  
-export default function IndexingPageWithLayout() {  
-  return (  
-    <DefaultLayout>  
-      <IndexingPage />  
-    </DefaultLayout>  
-  );  
-} 
+export default function IndexingPage() {
+  return (
+    <DefaultLayout>
+      <IndexingPageContent />
+    </DefaultLayout>
+  );
+}
