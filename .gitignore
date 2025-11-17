@@ -53,3 +53,4 @@ backend/dynamic_model_notes.txt
 backend/indexing_results.json
 alternative_schema_ideas.txt
 src/app/file-management/page.tsx
+/backend/__pycache__

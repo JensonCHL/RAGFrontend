@@ -10,7 +10,6 @@ import SearchBar from '@/components/SearchBar';
 import ErrorMessage from '@/components/ErrorMessage';
 import NoCompaniesFoundMessage from '@/components/NoCompaniesFoundMessage';
 import CompanyDetailModal from '@/components/CompanyDetailModal';
-import LoadingSpinner from '@/components/LoadingSpinner';
 import Link from 'next/link';
 import { Contract, Company, QdrantDocumentMetadata, QdrantCompany, ProcessingState } from '@/types';
 import { convertKeysToCamelCase } from '@/utils/data-transformers';
@@ -727,7 +726,7 @@ function FileManagementPage() {
 
           <div className="bg-white rounded-lg shadow p-8 flex justify-center items-center">
             <div className="text-center">
-              <LoadingSpinner size="large" color="#2563eb" className="mx-auto" />
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
               <p className="mt-4 text-gray-600">Loading companies...</p>
             </div>
           </div>
