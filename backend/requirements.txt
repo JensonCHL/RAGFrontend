@@ -10,3 +10,30 @@ psycopg2-binary
 gunicorn
 PyJWT
 requests
+
+# FastAPI dependencies
+fastapi
+uvicorn[standard]
+
+# Database and vector store
+psycopg2-binary
+qdrant-client
+
+# Environment and configuration
+python-dotenv
+
+# CORS support
+# (FastAPI has starlette which includes CORS support)
+
+# AI and processing
+openai
+langchain-openai
+PyMuPDF
+Pillow
+
+# Utilities
+PyJWT
+requests
+
+# Server
+gunicorn
