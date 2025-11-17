@@ -1,0 +1,14 @@
+# FastAPI app dependencies
+fastapi
+uvicorn[standard]
+python-dotenv
+psycopg2-binary
+qdrant-client
+openai
+PyMuPDF
+Pillow
+langchain-openai
+flask-cors
+gunicorn
+PyJWT
+requests

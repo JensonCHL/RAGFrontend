@@ -1,0 +1,41 @@
+FastAPI Conversion Tracker - app.py
+=================================
+
+Endpoints to convert:
+[✓] /health (GET) - COMPLETED
+[✓] /api/companies (GET) - COMPLETED
+[✓] /api/companies/{company_name}/documents (GET) - COMPLETED
+[✓] /api/companies-with-documents (GET) - COMPLETED
+[✓] /api/companies/{company_name} (DELETE) - COMPLETED
+[✓] /api/companies/{company_name}/documents/{document_name} (DELETE) - COMPLETED
+[✓] /api/process-documents (POST) - COMPLETED (partial implementation)
+[✓] /api/document-processing-states (GET) - COMPLETED
+[✓] /events/processing-updates (GET) - COMPLETED
+[✓] /api/create-index (POST) - COMPLETED
+[✓] /api/get-all-data (GET) - COMPLETED
+[✓] /api/list-indexes (GET) - COMPLETED
+[✓] /api/index/{string:index_name} (DELETE) - COMPLETED
+
+Progress:
+- Starting conversion of app.py to FastAPI with modular structure
+- Keeping original app.py intact
+- Created modular structure in backend/app/, backend/core/, backend/services/
+- Created core modules: config.py, database.py, qdrant_client.py, utils.py
+- Converted /health endpoint to FastAPI
+- Converted /api/companies endpoint to FastAPI
+- Converted /api/companies/{company_name}/documents endpoint to FastAPI
+- Converted /api/companies-with-documents endpoint to FastAPI
+- Converted /api/companies/{company_name} DELETE endpoint to FastAPI
+- Converted /api/companies/{company_name}/documents/{document_name} DELETE endpoint to FastAPI
+- Created processing_service.py for document processing logic
+- Converted /api/process-documents POST endpoint to FastAPI (partial implementation)
+- Converted /api/document-processing-states GET endpoint to FastAPI
+- Created events.py module for SSE endpoints
+- Converted /events/processing-updates GET endpoint to FastAPI
+- Created indexing_service.py for indexing logic
+- Converted /api/create-index POST endpoint to FastAPI
+- Created database_endpoints.py for database-related endpoints
+- Converted /api/get-all-data GET endpoint to FastAPI
+- Converted /api/list-indexes GET endpoint to FastAPI
+- Converted /api/index/{index_name} DELETE endpoint to FastAPI
+- ALL ENDPOINTS CONVERTED TO FASTAPI!
