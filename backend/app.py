@@ -1639,7 +1639,40 @@ def create_index_endpoint():
             # Wait for all threads to complete
             for thread in threads:
                 thread.join()
-            
+
+            # Check if any index was found across all companies
+            any_index_found = False
+            conn = get_db_connection()
+            if conn:
+                try:
+                    with conn.cursor() as cur:
+                        cur.execute(
+                            "SELECT COUNT(*) FROM extracted_data WHERE index_name = %s AND result IS NOT NULL AND result::text != %s",
+                            (index_name, '"No deep search found on this index"')
+                        )
+                        count = cur.fetchone()[0]
+                        any_index_found = count > 0
+                finally:
+                    conn.close()
+
+            # If no index was found anywhere, add a single "No deep search found on this index" record
+            if not any_index_found:
+                conn = get_db_connection()
+                if conn:
+                    try:
+                        with conn.cursor() as cur:
+                            # Generate a unique document_id for this aggregate record
+                            import hashlib
+                            document_id = hashlib.md5(f"aggregate_{index_name}".encode()).hexdigest()
+
+                            cur.execute(
+                                "INSERT INTO extracted_data (document_id, company_name, file_name, index_name, result) VALUES (%s, %s, %s, %s, %s)",
+                                (document_id, "", index_name, index_name, '"No deep search found on this index"')
+                            )
+                            conn.commit()
+                    finally:
+                        conn.close()
+
             status_callback("SUCCESS: All company workers have finished. Job complete.")
         except Exception as e:
             # Broad exception to catch any error during orchestration
