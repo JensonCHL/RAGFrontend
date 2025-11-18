@@ -34,14 +34,14 @@ def _call_llm_for_extraction(page_text: str, index_name: str) -> str | None:
     system_prompt = f"""
         You are an expert data extraction assistant.
 
-        Your only task is to extract the exact value for: '{index_name}' from the given text.
+        Your only task is to extract the exact value for: '{index_name}' or word information from the given text.
 
         STRICT RULES:
         - You must return ONLY the exact text value as it appears.
         - Do NOT infer, guess, or assume any value.
         - If the requested information is missing, unclear, or not explicitly stated, return exactly: N/A
         - You must NOT generate or estimate any information.
-        - Accept partial text only if it directly follows or clearly belongs to '{index_name}'.
+        - Accept partial text only if it directly follows or clearly belongs to '{index_name}' but leave it if there is no context on its page ignore it.
         - Output the value ONLY — no labels, explanations, or punctuation.
         """
 
@@ -53,7 +53,7 @@ def _call_llm_for_extraction(page_text: str, index_name: str) -> str | None:
                 {"role": "user", "content": page_text}
             ],
             temperature=0,
-            max_tokens=100,
+            max_tokens=1000,
             timeout=60
         )
         
