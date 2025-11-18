@@ -107,26 +107,25 @@ def index_single_document(company_name: str, file_name: str, index_name: str, st
                 found_on_page = current_page
                 break # Early stopping
 
-        if extracted_value is None and status_callback:
-            status_callback(f"    - INFO: Index '{index_name}' not found in {file_name}.")
-
         # 3. Prepare data and insert into the database
         from db_utils import get_db_connection, insert_extracted_data
-        
-        result_data = {
-            "value": extracted_value,
-            "page": found_on_page,
-            "index_name": index_name
-        }
-        
-        company_results_for_db = {
-            file_name: result_data
-        }
 
         conn = get_db_connection()
         if conn:
             try:
-                insert_extracted_data(conn, company_name, company_results_for_db)
+                # Only insert if we found the index
+                if extracted_value is not None:
+                    result_data = {
+                        "value": extracted_value,
+                        "page": found_on_page,
+                        "index_name": index_name
+                    }
+
+                    company_results_for_db = {
+                        file_name: result_data
+                    }
+
+                    insert_extracted_data(conn, company_name, company_results_for_db)
             finally:
                 conn.close()
 
@@ -160,6 +159,9 @@ def index_company_worker(company_name: str, index_name: str, output_file_path: s
 
         status_callback(f"Processing {len(document_files)} documents for {company_name}...")
 
+        # Track if any document had the index found
+        any_index_found = False
+
         for doc_filename in document_files:
             cache_path = os.path.join(company_cache_dir, doc_filename)
             try:
@@ -182,17 +184,20 @@ def index_company_worker(company_name: str, index_name: str, output_file_path: s
                     status_callback(f"  - SUCCESS: Found '{index_name}' on page {current_page} of {doc_filename}.")
                     extracted_value = llm_response
                     found_on_page = current_page
+                    any_index_found = True  # Mark that we found the index
                     break
-            
+
             if extracted_value is None:
                 status_callback(f"  - INFO: Index '{index_name}' not found in any page for {doc_filename}.")
 
-            # We store the index_name in the result object itself for easier processing in the db_utils
-            company_results[doc_filename] = {
-                "value": extracted_value,
-                "page": found_on_page,
-                "index_name": index_name
-            }
+            # Only store results for documents where index was found
+            if extracted_value is not None:
+                # We store the index_name in the result object itself for easier processing in the db_utils
+                company_results[doc_filename] = {
+                    "value": extracted_value,
+                    "page": found_on_page,
+                    "index_name": index_name
+                }
 
         # --- Database Insertion Step ---
         conn = get_db_connection()
@@ -200,7 +205,8 @@ def index_company_worker(company_name: str, index_name: str, output_file_path: s
             try:
                 # Ensure the table exists
                 create_table_if_not_exists(conn)
-                # Insert the data
+
+                # Insert individual document results (only for found indexes)
                 insert_extracted_data(conn, company_name, company_results)
             finally:
                 conn.close()
