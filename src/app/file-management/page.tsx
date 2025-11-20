@@ -201,8 +201,16 @@ function FileManagementPage() {
 
   const handleSelectAllChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.checked) {
-      // Filter out companies that are currently processing
+      // Filter out companies that are currently processing and only select unsynced companies
       const selectableCompanyIds = visibleCompanyIds.filter((companyId: string) => {
+        const company = companies.find(c => c.id === companyId);
+        if (!company) return false;
+
+        // Check if company has unsynced documents
+        const isUnsynced = hasUnsyncedDocuments(company);
+        if (!isUnsynced) return false;
+
+        // Check if company is currently processing
         const companyProcessingStates = Object.values(processingStates).filter(
           (state) => state.companyId === companyId
         );
@@ -670,7 +678,31 @@ function FileManagementPage() {
         contract.name.toLowerCase().includes(term)
       )
     );
+  }).sort((a, b) => {
+    // Determine sync status for sorting
+    const aQdrantData = qdrantData[a.name];
+    const bQdrantData = qdrantData[b.name];
+
+    const aSyncedDocs = aQdrantData ? Object.keys(aQdrantData.documents) : [];
+    const bSyncedDocs = bQdrantData ? Object.keys(bQdrantData.documents) : [];
+
+    const aUnsyncedCount = a.contracts.filter(contract => !aSyncedDocs.includes(contract.name)).length;
+    const bUnsyncedCount = b.contracts.filter(contract => !bSyncedDocs.includes(contract.name)).length;
+
+    // Sort unsynced companies to the top (higher unsynced count first)
+    if (aUnsyncedCount > 0 && bUnsyncedCount === 0) return -1;
+    if (aUnsyncedCount === 0 && bUnsyncedCount > 0) return 1;
+
+    // If both are unsynced or both are synced, sort alphabetically
+    return a.name.localeCompare(b.name);
   });
+
+  // Helper function to determine if a company has unsynced documents
+  const hasUnsyncedDocuments = (company: Company) => {
+    const qdrantCompanyData = qdrantData[company.name];
+    const syncedDocs = qdrantCompanyData ? Object.keys(qdrantCompanyData.documents) : [];
+    return company.contracts.some(contract => !syncedDocs.includes(contract.name));
+  };
 
   // Derived state for convenience - MUST be after filteredCompanies is defined
   const visibleCompanyIds = filteredCompanies.map(c => c.id);
@@ -688,11 +720,21 @@ function FileManagementPage() {
     return !isAnyDocumentProcessing;
   });
 
-  const isAllSelected = selectableCompanyIds.length > 0 && selectedCompanies.length === selectableCompanyIds.length;
+  const isAllSelected = selectableCompanyIds.length > 0 &&
+    selectedCompanies.length === selectableCompanyIds.filter((companyId: string) => {
+      const company = companies.find(c => c.id === companyId);
+      return company && hasUnsyncedDocuments(company);
+    }).length;
 
   // Check if all visible companies are processing (to disable Select All)
   const areAllCompaniesProcessing = visibleCompanyIds.length > 0 &&
     visibleCompanyIds.every((companyId: string) => {
+      const company = companies.find(c => c.id === companyId);
+      if (!company) return true;
+
+      // If company has no unsynced documents, don't count it
+      if (!hasUnsyncedDocuments(company)) return true;
+
       const companyProcessingStates = Object.values(processingStates).filter(
         (state) => state.companyId === companyId
       );
@@ -814,7 +856,7 @@ function FileManagementPage() {
               />
               <label htmlFor="select-all" className={`ml-2 text-sm font-medium ${areAllCompaniesProcessing ? 'text-gray-400' : 'text-gray-700'
                 }`}>
-                Select All
+                Select all unsync
               </label>
             </div>
             {selectedCompanies.length > 0 && (
