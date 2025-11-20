@@ -142,6 +142,26 @@ async def create_index_endpoint(
     if not index_name:
         raise HTTPException(status_code=400, detail='Missing index_name')
 
+    # Convert index name to uppercase
+    original_index_name = index_name
+    index_name = index_name.upper()
+
+    # Check if this index name already exists in the database
+    conn = get_db_connection()
+    if conn:
+        try:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SELECT COUNT(*) FROM extracted_data WHERE index_name = %s",
+                    (index_name,)
+                )
+                count = cur.fetchone()[0]
+                if count > 0:
+                    # Index name already exists, return error
+                    raise HTTPException(status_code=400, detail='Duplicate Index name')
+        finally:
+            conn.close()
+
     def job_orchestrator():
         """Discovers companies and launches a worker thread for each."""
         # Define the central output file
