@@ -392,7 +392,7 @@ function DashboardPage() {
         <header className="mb-8">
           <div className="flex justify-between items-center">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">Document Processing Dashboard</h1>
+              <h1 className="text-3xl font-bold text-gray-900">Document Dashboard</h1>
               <p className="text-gray-600 mt-2">
                 View processed documents and manage your ingestion workflow
               </p>
