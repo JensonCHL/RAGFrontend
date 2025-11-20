@@ -517,6 +517,17 @@ async def get_document_chunks(
         # Sort points by page number
         sorted_points = sorted(points, key=lambda p: p.payload.get("metadata", {}).get("page", 0))
 
+        # Check if no points were found
+        if not sorted_points:
+            return JSONResponse({
+                "success": False,
+                "error": "Wrong document name or File name",
+                "company": company,
+                "document": document,
+                "chunks": [],
+                "count": 0
+            })
+
         # Format results
         chunks = []
         for point in sorted_points:
