@@ -349,7 +349,7 @@ async def get_index_data(
 def get_documents_by_company():
     """
     Retrieve all documents from Qdrant and group by company
-    Returns a list of dictionaries with company name and document sources
+    Returns a dictionary with statistics and company documents list
     """
     try:
         # Connect to Qdrant
@@ -365,6 +365,7 @@ def get_documents_by_company():
 
         # Group documents by company
         company_documents = {}
+        total_contracts = 0
 
         for p in pts or []:
             meta = (p.payload or {}).get("metadata", {})
@@ -377,15 +378,26 @@ def get_documents_by_company():
 
             if source not in company_documents[company]:
                 company_documents[company].append(source)
+                total_contracts += 1
+
+        # Calculate total companies
+        total_companies = len(company_documents)
 
         # Convert to the new simplified format
-        result = []
+        company_list = []
         for company, sources in company_documents.items():
             company_data = {
                 "Company Name": company,
                 "Contract Title": ", ".join(sources)  # Join all sources with comma and space
             }
-            result.append(company_data)
+            company_list.append(company_data)
+
+        # Return statistics and company list
+        result = {
+            "total_companies": total_companies,
+            "total_contracts": total_contracts,
+            "companies": company_list
+        }
 
         return result
     except Exception as e:
@@ -396,8 +408,8 @@ def get_documents_by_company():
 async def get_documents(api_key_verified: bool = Depends(verify_api_key)):
     """Get all documents grouped by company"""
     try:
-        documents = get_documents_by_company()
-        return JSONResponse(documents)
+        documents_data = get_documents_by_company()
+        return JSONResponse(documents_data)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -408,11 +420,17 @@ async def get_documents_by_company_name(
 ):
     """Get documents for a specific company"""
     try:
-        documents = get_documents_by_company()
+        documents_data = get_documents_by_company()
         # Find the specific company in the list
-        company_data = [item for item in documents if item.get("Company Name") == company_name]
+        company_data = [item for item in documents_data["companies"] if item.get("Company Name") == company_name]
         if company_data:
-            return JSONResponse(company_data)
+            # Return the same structure but with only the requested company
+            result = {
+                "total_companies": 1,
+                "total_contracts": len(company_data[0].get("Contract Title", "").split(", ")) if company_data[0].get("Contract Title") else 0,
+                "companies": company_data
+            }
+            return JSONResponse(result)
         else:
             raise HTTPException(status_code=404, detail=f"No documents found for company: {company_name}")
     except Exception as e:
