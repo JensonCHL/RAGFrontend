@@ -14,7 +14,7 @@ import Link from 'next/link';
 import { Contract, Company, QdrantDocumentMetadata, QdrantCompany, ProcessingState } from '@/types';
 import { convertKeysToCamelCase } from '@/utils/data-transformers';
 import DefaultLayout from '../default-layout';
-
+// aa
 function FileManagementPage() {
   const [companies, setCompanies] = useState<Company[]>([]);
   const [isCreatingCompany, setIsCreatingCompany] = useState(false);
@@ -123,7 +123,7 @@ function FileManagementPage() {
               if (qdrantUpdateTimeout) {
                 clearTimeout(qdrantUpdateTimeout);
               }
-              
+
               qdrantUpdateTimeout = setTimeout(() => {
                 const newQdrantData = convertKeysToCamelCase(data.data);
                 setQdrantData(newQdrantData);
@@ -911,11 +911,11 @@ function FileManagementPage() {
     </div>
   );
 }
-  
-export default function FileManagementPageWithLayout() {  
-  return (  
-    <DefaultLayout>  
-      <FileManagementPage />  
-    </DefaultLayout>  
-  );  
+
+export default function FileManagementPageWithLayout() {
+  return (
+    <DefaultLayout>
+      <FileManagementPage />
+    </DefaultLayout>
+  );
 } 
