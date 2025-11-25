@@ -280,11 +280,10 @@ export default function CompanyCard({
                     onProcessUnsynced(company.id);
                   }}
                   disabled={isAnyDocumentInError}
-                  className={`p-1 rounded-lg transition duration-150 ease-in-out ${
-                    isAnyDocumentInError 
-                      ? 'bg-gray-400 text-gray-200 cursor-not-allowed' 
-                      : 'bg-green-600 hover:bg-green-700 text-white'
-                  }`}
+                  className={`p-1 rounded-lg transition duration-150 ease-in-out ${isAnyDocumentInError
+                    ? 'bg-gray-400 text-gray-200 cursor-not-allowed'
+                    : 'bg-green-600 hover:bg-green-700 text-white'
+                    }`}
                   title={isAnyDocumentInError ? "Cannot process due to errors" : "Process unsynced documents"}
                 >
                   <svg
@@ -340,7 +339,7 @@ export default function CompanyCard({
 
       {/* Contracts Grid - Windows File Manager Style */}
       <div
-        className={`p-3 ${isDragging ? 'bg-blue-50 border-2 border-dashed border-blue-300 rounded' : ''}`}
+        className={`p-3 max-h-[180px] overflow-y-auto ${isDragging ? 'bg-blue-50 border-2 border-dashed border-blue-300 rounded' : ''}`}
         onDragEnter={handleDragEnter}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}

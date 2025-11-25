@@ -10,6 +10,7 @@ from qdrant_client import QdrantClient
 from qdrant_client.models import Filter, FieldCondition, MatchValue
 import threading
 import traceback # Import the traceback module
+from concurrent.futures import ThreadPoolExecutor
 
 
 
@@ -23,6 +24,15 @@ load_dotenv(env_path)
 
 app = Flask(__name__)
 CORS(app)  # Enable CORS for all routes
+
+# Global ThreadPoolExecutor for document processing jobs
+# Limits concurrent processing to prevent system overload with 200+ companies
+MAX_CONCURRENT_JOBS = 30
+job_executor = ThreadPoolExecutor(max_workers=MAX_CONCURRENT_JOBS, thread_name_prefix="DocProcessor")
+
+# Track active and queued jobs
+active_jobs = set()  # Currently processing company IDs
+active_jobs_lock = threading.Lock()
 
 # OCR Cache Configuration
 OCR_CACHE_DIR = os.path.join(project_root, "backend", "ocr_cache")
@@ -58,66 +68,65 @@ def generate_document_id(company_id, file_name):
     return hashlib.sha1(combined.encode()).hexdigest()[:16]
 
 def load_processing_states(company_id):
-    """Load processing states from a company-specific JSON file"""
-    file_path = get_log_file_path(company_id)
-    try:
-        if os.path.exists(file_path):
-            with open(file_path, 'r') as f:
-                return json.load(f)
-        return {}
-    except Exception as e:
-        print(f"Error loading processing states from {file_path}: {e}")
-        return {}
+    """
+    Load processing states from in-memory storage for a specific company.
+    Returns all document states that belong to this company.
+    """
+    with processing_lock:
+        # Filter states by company_id
+        company_states = {
+            doc_id: state.copy()  # Return copy to prevent external modification
+            for doc_id, state in processing_states_memory.items()
+            if state.get('company_id') == company_id
+        }
+        return company_states
 
 def save_processing_states(company_id, states):
-    """Save processing states to a company-specific JSON file"""
-    file_path = get_log_file_path(company_id)
-    try:
-        with open(file_path, 'w') as f:
-            json.dump(states, f, indent=2)
-        
-        # Notify listeners of update
-        notify_processing_update({"type": "states_updated", "states": states})
-    except Exception as e:
-        print(f"Error saving processing states to {file_path}: {e}")
-
-def cleanup_old_processing_states():
     """
-    This function is now used to clean up orphaned log files that might be left
-    over from a crashed process. It deletes any log file older than a set threshold.
+    Save processing states to in-memory storage.
+    Also broadcasts updates to all SSE listeners.
+    
+    Args:
+        company_id: The company identifier
+        states: Dictionary of {doc_id: state_data}
     """
-    ORPHAN_THRESHOLD_SECONDS = 3600 # 1 hour
-    try:
-        now = time.time()
-        for filename in os.listdir(PROCESSING_LOGS_DIR):
-            if filename.endswith(".json"):
-                file_path = os.path.join(PROCESSING_LOGS_DIR, filename)
-                try:
-                    if now - os.path.getmtime(file_path) > ORPHAN_THRESHOLD_SECONDS:
-                        os.remove(file_path)
-                        print(f"INFO: Removed orphaned processing log: {filename}")
-                except OSError as e:
-                    print(f"ERROR: Failed to remove orphaned log {filename}: {e}")
-    except Exception as e:
-        print(f"ERROR: An error occurred during orphaned log cleanup: {e}")
-
-def clear_processing_states_log():
-    """Clear all processing states from the log directory"""
     with processing_lock:
-        try:
-            for filename in os.listdir(PROCESSING_LOGS_DIR):
-                if filename.endswith(".json"):
-                    file_path = os.path.join(PROCESSING_LOGS_DIR, filename)
-                    os.remove(file_path)
-            print(f"DEBUG: Cleared all processing logs from: {PROCESSING_LOGS_DIR}")
-        except Exception as e:
-            print(f"Error clearing processing states log directory: {e}")
+        # Update in-memory storage
+        for doc_id, state in states.items():
+            # Ensure company_id is set
+            if 'company_id' not in state:
+                state['company_id'] = company_id
+            processing_states_memory[doc_id] = state
+        
+        # Notify listeners of update via SSE
+        notify_processing_update({"type": "states_updated", "states": states})
 
-# Clean up any orphaned logs from previous runs at startup
-cleanup_old_processing_states()
+def cleanup_processing_state(doc_id):
+    """
+    Remove a processing state from memory when processing is complete.
+    Called after a document finishes processing.
+    
+    Args:
+        doc_id: The document identifier to remove
+    """
+    with processing_lock:
+        removed = processing_states_memory.pop(doc_id, None)
+        if removed:
+            print(f"🗑️  CLEANED UP: {doc_id} | Memory freed")
+        return removed
 
-# This global variable is no longer loaded at startup, but managed within requests.
-processing_states = {}
+
+# ============================================================================
+# IN-MEMORY PROCESSING STATE STORAGE
+# Replaces JSON file-based storage for better performance
+# ============================================================================
+
+# Global in-memory storage for processing states
+# Structure: {doc_id: {state_data}}
+processing_states_memory = {}
+
+# Note: processing_lock is already defined above (line 51) and will be reused
+# for thread-safe access to processing_states_memory
 
 # Qdrant configuration
 QDRANT_URL = os.getenv('QDRANT_URL')
@@ -1083,9 +1092,41 @@ def process_documents():
                 'success': False,
                 'error': 'Missing company_id or files'
             }), 400
+        
+        # ✅ IMMEDIATELY create "queued" states in RAM for all documents
+        # This allows frontend to show "Queued" status before processing starts
+        with processing_lock:
+            processing_states = load_processing_states(company_id)
+            
+            for file_idx, file_name in enumerate(files):
+                doc_id = generate_document_id(company_id, file_name)
+                
+                # Create queued state
+                processing_states[doc_id] = {
+                    "doc_id": doc_id,
+                    "company_id": company_id,
+                    "file_name": file_name,
+                    "is_processing": False,  # Not processing yet
+                    "is_queued": True,       # Waiting in queue
+                    "current_file": file_name,
+                    "file_index": file_idx + 1,
+                    "total_files": len(files),
+                    "progress": 0,
+                    "message": f"Queued: Waiting for available worker...",
+                    "steps": {},
+                    "queued_time": time.time(),
+                    "logs": [{
+                        "timestamp": time.time(),
+                        "message": f"Document queued for processing",
+                        "status": "queued"
+                    }]
+                }
+            
+            save_processing_states(company_id, processing_states)
+            print(f"📋 QUEUED: {len(files)} documents for {company_id}")
+        
         def generate():
             print("Try def block Executed")
-            log_file_path = get_log_file_path(company_id)
             document_ids = []
             try:
                 print("DEBUG: Entered generate() try block.", flush=True)
@@ -1118,20 +1159,36 @@ def process_documents():
                     
                     with processing_lock:
                         processing_states = load_processing_states(company_id)
-                        processing_states[doc_id] = {
-                            "doc_id": doc_id,
-                            "company_id": company_id,
-                            "file_name": file_name,
-                            "is_processing": True,
-                            "current_file": file_name,
-                            "file_index": file_idx + 1,
-                            "total_files": len(files),
-                            "progress": 0,
-                            "message": f"Initializing processing for {file_name}",
-                            "steps": {},
-                            "start_time": time.time(),
-                            "logs": []
-                        }
+                        
+                        # Update from "queued" to "processing"
+                        if doc_id in processing_states:
+                            # Preserve queued_time
+                            queued_time = processing_states[doc_id].get("queued_time")
+                            processing_states[doc_id].update({
+                                "is_processing": True,
+                                "is_queued": False,
+                                "progress": 0,
+                                "message": f"Initializing processing for {file_name}",
+                                "start_time": time.time()
+                            })
+                        else:
+                            # Fallback: create new state if not queued
+                            processing_states[doc_id] = {
+                                "doc_id": doc_id,
+                                "company_id": company_id,
+                                "file_name": file_name,
+                                "is_processing": True,
+                                "is_queued": False,
+                                "current_file": file_name,
+                                "file_index": file_idx + 1,
+                                "total_files": len(files),
+                                "progress": 0,
+                                "message": f"Initializing processing for {file_name}",
+                                "steps": {},
+                                "start_time": time.time(),
+                                "logs": []
+                            }
+                        
                         processing_states[doc_id]["logs"].append({
                             "timestamp": time.time(),
                             "message": f"Started processing document {file_name}",
@@ -1429,25 +1486,72 @@ def process_documents():
                 }) + "\n"
             
             finally:
-                if os.path.exists(log_file_path):
-                    try:
-                        time.sleep(5)
-                        os.remove(log_file_path)
-                        print(f"DEBUG: Removed processing log file: {log_file_path}")
-                    except OSError as e:
-                        print(f"ERROR: Failed to remove log file {log_file_path}: {e}")
+                # Clean up processing states from memory
+                for doc_id, file_name in document_ids:
+                    cleanup_processing_state(doc_id)
+                
+                # Remove from active jobs when done
+                with active_jobs_lock:
+                    active_jobs.discard(company_id)
+                    remaining_jobs = len(active_jobs)
+                    print(f"✅ WORKER FINISHED: {company_id} | Remaining active jobs: {remaining_jobs}/{MAX_CONCURRENT_JOBS}")
 
         def start_processing_in_background():
-            for _ in generate():
-                pass
+            """Wrapper function to run the generator with timing"""
+            start_time = time.time()
+            print(f"🚀 WORKER STARTED: {company_id} | Files: {len(files)}")
+            
+            try:
+                for _ in generate():
+                    pass
+                
+                # Calculate duration
+                duration = time.time() - start_time
+                minutes = int(duration // 60)
+                seconds = int(duration % 60)
+                print(f"✅ WORKER COMPLETED: {company_id} | Duration: {minutes}m {seconds}s | Files processed: {len(files)}")
+                
+            except Exception as e:
+                duration = time.time() - start_time
+                print(f"❌ WORKER FAILED: {company_id} | Duration: {duration:.1f}s | Error: {e}")
+                traceback.print_exc()
 
-        processing_thread = threading.Thread(target=start_processing_in_background)
-        processing_thread.daemon = True
-        processing_thread.start()
+        # Check if this company is already being processed
+        with active_jobs_lock:
+            if company_id in active_jobs:
+                print(f"⚠️  DUPLICATE JOB REJECTED: {company_id} (already processing)")
+                return jsonify({
+                    'success': False,
+                    'error': f'Company {company_id} is already being processed. Please wait for current job to complete.'
+                }), 409  # Conflict status code
+            
+            # Add to active jobs
+            active_jobs.add(company_id)
+            queue_size = len(active_jobs)
+            
+            # Determine if job will start immediately or queue
+            if queue_size <= MAX_CONCURRENT_JOBS:
+                status = "STARTING NOW"
+            else:
+                status = f"QUEUED (position {queue_size - MAX_CONCURRENT_JOBS} in queue)"
+            
+            print(f"📥 JOB SUBMITTED: {company_id} | Status: {status} | Active: {queue_size}/{MAX_CONCURRENT_JOBS}")
+
+        # Submit job to thread pool executor (will queue if all workers are busy)
+        try:
+            future = job_executor.submit(start_processing_in_background)
+        except Exception as submit_error:
+            # If submission fails, remove from active jobs
+            with active_jobs_lock:
+                active_jobs.discard(company_id)
+            print(f"❌ JOB SUBMISSION FAILED: {company_id} | Error: {submit_error}")
+            raise submit_error
 
         return jsonify({
             'success': True,
-            'message': 'Document processing started in background.'
+            'message': f'Document processing started for {company_id}.',
+            'queue_position': queue_size,
+            'max_workers': MAX_CONCURRENT_JOBS
         }), 202
         
     except Exception as e:
@@ -1485,30 +1589,76 @@ def process_documents():
         }), 500
         
 
+@app.route('/api/processing-queue-status', methods=['GET'])
+def get_processing_queue_status():
+    """
+    Get detailed status of the processing queue
+    Returns:
+    - Active worker count
+    - Currently processing documents (with details)
+    - Queued documents (with details)
+    - Available workers
+    """
+    with active_jobs_lock:
+        active_count = len(active_jobs)
+        active_list = list(active_jobs)
+    
+    # Get detailed processing and queued states from memory
+    with processing_lock:
+        all_states = processing_states_memory.copy()
+        
+        # Separate processing vs queued
+        currently_processing = []
+        queued_documents = []
+        
+        for doc_id, state in all_states.items():
+            doc_info = {
+                'doc_id': doc_id,
+                'company_id': state.get('company_id'),
+                'file_name': state.get('file_name'),
+                'progress': state.get('progress', 0),
+                'message': state.get('message', ''),
+                'current_page': state.get('current_page'),
+                'total_pages': state.get('total_pages')
+            }
+            
+            if state.get('is_processing'):
+                currently_processing.append(doc_info)
+            elif state.get('is_queued'):
+                # Add wait time
+                queued_time = state.get('queued_time', time.time())
+                doc_info['wait_time_seconds'] = int(time.time() - queued_time)
+                queued_documents.append(doc_info)
+    
+    return jsonify({
+        'success': True,
+        'active_workers': active_count,
+        'max_workers': MAX_CONCURRENT_JOBS,
+        'available_workers': MAX_CONCURRENT_JOBS - active_count,
+        'queue_full': active_count >= MAX_CONCURRENT_JOBS,
+        'active_companies': active_list,
+        'currently_processing': currently_processing,
+        'queued_documents': queued_documents,
+        'total_processing': len(currently_processing),
+        'total_queued': len(queued_documents)
+    })
+
 @app.route('/api/document-processing-states', methods=['GET'])
 def get_document_processing_states():
     """
-    Get all document processing states by aggregating all active log files.
+    Get all document processing states from in-memory storage.
+    Returns all active processing states across all companies.
     """
-    print("DEBUG: Fetching document processing states from log directory")
-    all_states = {}
-    try:
-        for filename in os.listdir(PROCESSING_LOGS_DIR):
-            if filename.endswith(".json"):
-                file_path = os.path.join(PROCESSING_LOGS_DIR, filename)
-                try:
-                    with open(file_path, 'r') as f:
-                        states = json.load(f)
-                        all_states.update(states)
-                except Exception as e:
-                    print(f"ERROR: Failed to read or parse log file {filename}: {e}")
+    with processing_lock:
+        # Return a copy to prevent external modification
+        all_states = processing_states_memory.copy()
         
+        # Count active processing jobs
         active_count = sum(1 for state in all_states.values() if state.get("is_processing"))
-        print(f"DEBUG: Returning {len(all_states)} total states ({active_count} active) from {len(os.listdir(PROCESSING_LOGS_DIR))} files.")
+        
+        print(f"📊 STATES REQUESTED: {len(all_states)} total states ({active_count} active)")
+        
         return jsonify(all_states)
-    except Exception as e:
-        print(f"ERROR: Could not list processing logs directory: {e}")
-        return jsonify({})
 
 # Global variables for SSE
 processing_listeners = set()

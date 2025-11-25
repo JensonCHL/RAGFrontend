@@ -58,6 +58,21 @@ def get_settings() -> Settings:
     return Settings()
 
 
+def get_deka_client():
+    """Initialize and return the Deka AI client."""
+    settings = get_settings()
+
+    if not settings.DEKA_BASE_URL or not settings.DEKA_KEY:
+        return None
+
+    try:
+        from openai import OpenAI
+        return OpenAI(api_key=settings.DEKA_KEY, base_url=settings.DEKA_BASE_URL)
+    except ImportError:
+        print("WARNING: openai package not installed. Deka AI client not available.")
+        return None
+
+
 # Create directories if they don't exist
 settings = get_settings()
 os.makedirs(settings.OCR_CACHE_DIR, exist_ok=True)

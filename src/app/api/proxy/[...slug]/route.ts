@@ -68,8 +68,9 @@ async function proxyRequest(req: NextRequest, slug: string[]) {
       headers: responseHeaders,
     })
   } catch (error) {
-    console.error("Proxy error:", error)
-    return new NextResponse(JSON.stringify({ error: "Proxy error", details: error.message }), {
+    const errMsg = error instanceof Error ? error.message : String(error);
+    console.error("Proxy error:", errMsg);
+    return new NextResponse(JSON.stringify({ error: "Proxy error", details: errMsg }), {
       status: 500,
       headers: { "Content-Type": "application/json" },
     })

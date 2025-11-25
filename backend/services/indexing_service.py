@@ -7,13 +7,130 @@ Handles the complex workflow of indexing documents.
 import os
 import json
 import threading
-from typing import Callable
+import time
+from typing import Callable, Optional
 from pathlib import Path
 
 from core.config import get_settings
+from core.database import get_db_connection
 from app.events import notify_processing_update
 
 settings = get_settings()
+
+
+def _call_llm_for_extraction(page_text: str, index_name: str) -> Optional[str]:
+    """
+    Calls the DekaLLM API to extract a specific piece of information.
+    Returns the found value as a string, or None if not found.
+    """
+    # Get Deka AI client from config
+    from core.config import get_deka_client
+    deka_client = get_deka_client()
+    OCR_MODEL = "meta/llama-4-maverick-instruct"
+
+    if not deka_client:
+        print("      - ERROR: DekaLLM client not configured. Please check .env file.")
+        return None
+
+    print(f"      - LLM: Asking for '{index_name}' from page text...")
+
+    system_prompt = f"""
+        You are an expert data extraction assistant.
+
+        Your only task is to extract the exact value for: '{index_name}' from the given text.
+
+        STRICT RULES:
+        - You must return ONLY the exact text value as it appears.
+        - Do NOT infer, guess, or assume any value.
+        - If the requested information is missing, unclear, or not explicitly stated, return exactly: N/A
+        - You must NOT generate or estimate any information.
+        - Accept partial text only if it directly follows or clearly belongs to '{index_name}'.
+        - Output the value ONLY — no labels, explanations, or punctuation.
+        """
+
+    try:
+        response = deka_client.chat.completions.create(
+            model=OCR_MODEL,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": f"Extract '{index_name}' from this text:\n\n{page_text}"}
+            ],
+            max_tokens=500,
+            temperature=0
+        )
+
+        result = (response.choices[0].message.content or "").strip()
+        return result if result else None
+    except Exception as e:
+        print(f"      - ERROR: LLM call failed: {e}")
+        return None
+
+
+def index_single_document(company_name: str, file_name: str, index_name: str, status_callback: Optional[Callable] = None):
+    """
+    Processes a single document for a single index and saves the result to the database.
+    """
+    if status_callback:
+        status_callback(f"  - Starting structured index '{index_name}' for {file_name}")
+
+    try:
+        # 1. Read the OCR cache for the specific document
+        project_root = settings.PROJECT_ROOT
+        cache_path = os.path.join(project_root, "backend", "ocr_cache", company_name, f"{file_name}.json")
+
+        ocr_pages = []
+        if os.path.exists(cache_path):
+            with open(cache_path, 'r', encoding='utf-8') as f:
+                ocr_pages = json.load(f)
+        else:
+            if status_callback:
+                status_callback(f"  - WARNING: OCR cache not found for {file_name}. Skipping structured index.")
+            return
+
+        # 2. Loop through pages and call LLM for extraction
+        extracted_value = None
+        found_on_page = None
+        for page_data in ocr_pages:
+            page_text = page_data.get("text", "")
+            current_page = page_data.get("page")
+
+            llm_response = _call_llm_for_extraction(page_text, index_name)
+
+            if llm_response is not None:
+                if status_callback:
+                    status_callback(f"    - SUCCESS: Found '{index_name}' on page {current_page} of {file_name}.")
+                extracted_value = llm_response
+                found_on_page = current_page
+                break # Early stopping
+
+        if extracted_value is None and status_callback:
+            status_callback(f"    - INFO: Index '{index_name}' not found in {file_name}.")
+
+        # 3. Prepare data and insert into the database
+        result_data = {
+            "value": extracted_value,
+            "page": found_on_page,
+            "index_name": index_name
+        }
+
+        company_results_for_db = {
+            file_name: result_data
+        }
+
+        conn = get_db_connection()
+        if conn:
+            try:
+                # Import db_utils functions
+                from core.database import insert_extracted_data
+                insert_extracted_data(conn, company_name, company_results_for_db)
+            finally:
+                conn.close()
+
+    except Exception as e:
+        error_message = f"  - ERROR: Failed during structured indexing for {file_name}. Error: {e}"
+        if status_callback:
+            status_callback(error_message)
+        print(error_message)
 
 
 def index_company_worker(company_name: str, index_name: str, output_file_path: str, file_lock: threading.RLock, status_callback: Callable[[str], None]):
@@ -22,11 +139,10 @@ def index_company_worker(company_name: str, index_name: str, output_file_path: s
     This is a placeholder implementation - in a real system, this would contain the actual indexing logic.
     """
     status_callback(f"Starting indexing for company: {company_name}")
-    
+
     # Simulate some work
-    import time
     time.sleep(2)
-    
+
     status_callback(f"Completed indexing for company: {company_name}")
 
 

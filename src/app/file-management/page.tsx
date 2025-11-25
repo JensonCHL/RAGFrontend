@@ -10,6 +10,7 @@ import SearchBar from '@/components/SearchBar';
 import ErrorMessage from '@/components/ErrorMessage';
 import NoCompaniesFoundMessage from '@/components/NoCompaniesFoundMessage';
 import CompanyDetailModal from '@/components/CompanyDetailModal';
+import ProcessingMonitor from '@/components/ProcessingMonitor';
 import Link from 'next/link';
 import { Contract, Company, QdrantDocumentMetadata, QdrantCompany, ProcessingState } from '@/types';
 import { convertKeysToCamelCase } from '@/utils/data-transformers';
@@ -104,9 +105,31 @@ function FileManagementPage() {
 
     let eventSource: EventSource | null = null;
     let qdrantUpdateTimeout: NodeJS.Timeout | null = null;
+    let reconnectTimeout: NodeJS.Timeout | null = null;
+    let reconnectAttempts = 0;
+    const MAX_RECONNECT_ATTEMPTS = 10;
+    const BASE_RECONNECT_DELAY = 2000; // Start with 2 seconds
 
     const setupEventSource = () => {
+      // Close existing connection if any
+      if (eventSource) {
+        eventSource.close();
+        eventSource = null;
+      }
+
+      // Clear any pending reconnect
+      if (reconnectTimeout) {
+        clearTimeout(reconnectTimeout);
+        reconnectTimeout = null;
+      }
+
+      console.log('🔌 Connecting to SSE...');
       eventSource = new EventSource('/api/proxy/events/processing-updates');
+
+      eventSource.onopen = () => {
+        console.log('✅ SSE Connected');
+        reconnectAttempts = 0; // Reset on successful connection
+      };
 
       eventSource.onmessage = (event) => {
         try {
@@ -149,6 +172,9 @@ function FileManagementPage() {
 
               return updated;
             });
+          } else if (data.type === 'indexing_status') {
+            // Indexing updates - just log, don't cause re-renders
+            console.log('📑 Indexing:', data.message);
           }
         } catch (error) {
           console.error('Failed to parse SSE message:', error);
@@ -156,9 +182,27 @@ function FileManagementPage() {
       };
 
       eventSource.onerror = (error) => {
-        console.error('SSE error:', error);
-        // Reconnect after 5 seconds
-        setTimeout(setupEventSource, 5000);
+        console.error('❌ SSE error:', error);
+
+        // Close the failed connection
+        if (eventSource) {
+          eventSource.close();
+          eventSource = null;
+        }
+
+        // Only reconnect if we haven't exceeded max attempts
+        if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
+          reconnectAttempts++;
+
+          // Exponential backoff: 2s, 4s, 8s, 16s, max 30s
+          const delay = Math.min(BASE_RECONNECT_DELAY * Math.pow(2, reconnectAttempts - 1), 30000);
+
+          console.log(`🔄 Reconnecting in ${delay / 1000}s (attempt ${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS})...`);
+
+          reconnectTimeout = setTimeout(setupEventSource, delay);
+        } else {
+          console.error('❌ Max reconnection attempts reached. Please refresh the page.');
+        }
       };
     };
 
@@ -166,11 +210,19 @@ function FileManagementPage() {
 
     // Cleanup function
     return () => {
+      console.log('🔌 Cleaning up SSE connection');
+
       if (eventSource) {
         eventSource.close();
+        eventSource = null;
       }
       if (qdrantUpdateTimeout) {
         clearTimeout(qdrantUpdateTimeout);
+        qdrantUpdateTimeout = null;
+      }
+      if (reconnectTimeout) {
+        clearTimeout(reconnectTimeout);
+        reconnectTimeout = null;
       }
     };
   }, [isInitialLoad]);
@@ -254,23 +306,86 @@ function FileManagementPage() {
       return;
     }
 
-    // Call the API for each job in parallel
+    // ✅ OPTIMISTIC UI UPDATE: Immediately show processing state
+    const optimisticStates: Record<string, any> = {};
+    jobs.forEach(job => {
+      job.files.forEach((fileName, index) => {
+        // Generate same doc_id as backend (must match!)
+        const docId = generateDocumentId(job.company_id, fileName);
+
+        optimisticStates[docId] = {
+          docId: docId,
+          companyId: job.company_id,
+          fileName: fileName,
+          isProcessing: true,
+          currentFile: fileName,
+          fileIndex: index + 1,
+          totalFiles: job.files.length,
+          progress: 0,
+          message: `Starting processing for ${fileName}...`,
+          steps: {},
+          startTime: Date.now()
+        };
+      });
+    });
+
+    // Update UI immediately (optimistic)
+    setProcessingStates(prev => ({ ...prev, ...optimisticStates }));
+
+    // Call the API for each job in parallel using Promise.allSettled to track all results
     try {
-      await Promise.all(jobs.map(job =>
-        fetch('/api/proxy/api/process-documents', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          // The backend expects a single job object, not an array
-          body: JSON.stringify(job)
-        })
-          .then(response => {
+      const results = await Promise.allSettled(
+        jobs.map(job =>
+          fetch('/api/proxy/api/process-documents', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(job)
+          }).then(async response => {
             if (!response.ok) {
-              console.error(`Failed to start processing for ${job.company_id}`);
+              const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+              throw new Error(`${job.company_id}: ${errorData.error || response.statusText}`);
             }
+            return { company_id: job.company_id, success: true };
           })
-      ));
+        )
+      );
+
+      // Track successes and failures
+      const successful: string[] = [];
+      const failed: { company: string; reason: string }[] = [];
+
+      results.forEach((result, index) => {
+        if (result.status === 'fulfilled') {
+          successful.push(jobs[index].company_id);
+        } else {
+          failed.push({
+            company: jobs[index].company_id,
+            reason: result.reason?.message || 'Unknown error'
+          });
+
+          // Remove optimistic states for failed jobs
+          const failedJob = jobs[index];
+          setProcessingStates(prev => {
+            const updated = { ...prev };
+            failedJob.files.forEach(fileName => {
+              const docId = generateDocumentId(failedJob.company_id, fileName);
+              delete updated[docId];
+            });
+            return updated;
+          });
+        }
+      });
+
+      // Provide feedback to user
+      if (failed.length > 0) {
+        const failedList = failed.map(f => f.company).join(', ');
+        setError(`Started processing ${successful.length}/${jobs.length} companies. Failed: ${failedList}`);
+        console.error('Failed jobs:', failed);
+      } else {
+        console.log(`Successfully started processing for all ${successful.length} companies`);
+      }
 
       // Deselect all after starting the jobs
       setSelectedCompanies([]);
@@ -278,6 +393,16 @@ function FileManagementPage() {
       console.error('Error dispatching batch processing jobs:', error);
       setError('An error occurred while starting the processing jobs.');
     }
+  };
+
+  // Helper function to generate temporary document ID for optimistic UI
+  // These will be replaced by real doc_ids from backend via SSE
+  const generateDocumentId = (companyId: string, fileName: string): string => {
+    // Use a temporary ID format that won't conflict with backend IDs
+    // Format: temp_{companyId}_{fileName}_{timestamp}
+    const timestamp = Date.now();
+    const sanitized = `${companyId}_${fileName}`.replace(/[^a-zA-Z0-9_]/g, '_');
+    return `temp_${sanitized}_${timestamp}`;
   };
 
   const fetchCompanies = async () => {
@@ -807,6 +932,9 @@ function FileManagementPage() {
 
         {/* Upload Progress Bar */}
         <UploadProgressBar isUploading={isUploading} progress={uploadProgress} />
+
+        {/* Processing Monitor */}
+        <ProcessingMonitor />
 
         {/* Search Bar - Moved below Upload Section */}
         <SearchBar searchTerm={searchTerm} onSearchChange={(e) => setSearchTerm(e.target.value)} />
