@@ -512,30 +512,24 @@ async def search_documents(
 # --- Get Document Chunks Endpoint (Converted to FastAPI) ---
 @app.get("/api/documents/chunks")
 async def get_document_chunks(
-    company: str = Query(..., description="Company name"),
     document: str = Query(..., description="Document name"),
     api_key_verified: bool = Depends(verify_api_key)
 ):
     """
-    Retrieve all chunks for a specific company and document name.
+    Retrieve all chunks for a specific document name.
     Query parameters:
-    - company: Company name
-    - document: Document name
+    - document: Document name (unique identifier)
     """
     try:
-        if not company or not document:
-            raise HTTPException(status_code=400, detail="Missing required parameters: 'company' and 'document'")
+        if not document:
+            raise HTTPException(status_code=400, detail="Missing required parameter: 'document'")
 
         # Connect to Qdrant
         client = QdrantClient(url=QDRANT_URL, api_key=QDRANT_API_KEY)
 
-        # Build filter for company and document
+        # Build filter for document only (since document names are unique)
         search_filter = rest.Filter(
             must=[
-                rest.FieldCondition(
-                    key="metadata.company",
-                    match=rest.MatchValue(value=company)
-                ),
                 rest.FieldCondition(
                     key="metadata.source",
                     match=rest.MatchValue(value=document)
@@ -560,11 +554,13 @@ async def get_document_chunks(
             return JSONResponse({
                 "success": False,
                 "error": "Wrong document name or File name",
-                "company": company,
                 "document": document,
                 "chunks": [],
                 "count": 0
             })
+
+        # Get company name from first chunk (since all chunks belong to same document)
+        company = sorted_points[0].payload.get("metadata", {}).get("company", "")
 
         # Format results
         chunks = []
