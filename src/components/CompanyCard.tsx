@@ -28,6 +28,7 @@ interface QdrantCompany {
 
 interface ProcessingState {
   isProcessing: boolean;
+  isQueued?: boolean; // Added for queued state
   isError?: boolean;
   errorMessage?: string;
   currentFile?: string;
@@ -93,6 +94,11 @@ export default function CompanyCard({
   // Determine if any document in this company is currently processing
   const isAnyDocumentProcessing = useMemo(() => {
     return companyProcessingStates.some((state) => state.isProcessing);
+  }, [companyProcessingStates]);
+
+  // Determine if any document in this company is queued
+  const isAnyDocumentQueued = useMemo(() => {
+    return companyProcessingStates.some((state) => state.isQueued && !state.isProcessing);
   }, [companyProcessingStates]);
 
   // Determine if any document in this company has an error
@@ -259,13 +265,27 @@ export default function CompanyCard({
               <div className="flex items-center">
                 <div className="flex flex-col">
                   <div className="flex items-center">
-                    <LoadingSpinner size="small" color="#2563eb" className="mr-2" />
+                    <div className="w-3 h-3 rounded-full bg-blue-500 mr-2"></div>
                     <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
                       Processing...
                     </span>
                   </div>
                   <span className="text-xs text-gray-500 truncate max-w-[120px]">
                     {companyProcessingStates.filter(s => s.isProcessing).length} file(s) processing
+                  </span>
+                </div>
+              </div>
+            ) : isAnyDocumentQueued ? (
+              <div className="flex items-center">
+                <div className="flex flex-col">
+                  <div className="flex items-center">
+                    <div className="w-3 h-3 rounded-full bg-orange-500 mr-2 animate-pulse"></div>
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
+                      Queued
+                    </span>
+                  </div>
+                  <span className="text-xs text-gray-500 truncate max-w-[120px]">
+                    {companyProcessingStates.filter(s => s.isQueued && !s.isProcessing).length} file(s) waiting
                   </span>
                 </div>
               </div>
@@ -406,6 +426,8 @@ export default function CompanyCard({
                     </div>
                     {contractProcessingState?.isProcessing ? (
                       <LoadingSpinner size="small" color="#2563eb" className="absolute top-0 right-0" />
+                    ) : contractProcessingState?.isQueued ? (
+                      <div className="absolute top-0 right-0 w-3 h-3 bg-orange-500 rounded-full animate-pulse" title="Queued for processing"></div>
                     ) : contractProcessingState?.isError ? (
                       <div className="absolute top-0 right-0 w-3 h-3 bg-red-500 rounded-full" title={`Error: ${contractProcessingState.errorMessage}`}></div>
                     ) : isSynced ? (

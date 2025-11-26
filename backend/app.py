@@ -51,16 +51,7 @@ def get_ocr_cache_path(company_id, source_name):
 # Global lock for thread-safe operations on the processing state
 processing_lock = threading.RLock()
 
-# Directory for processing logs
-PROCESSING_LOGS_DIR = os.path.join(project_root, "backend", "processing_logs")
-os.makedirs(PROCESSING_LOGS_DIR, exist_ok=True)  # Ensure directory exists at startup
-
-def get_log_file_path(company_id):
-    """Constructs the path for a company's log file."""
-    import re
-    # Sanitize company_id to make it a valid filename
-    safe_company_id = re.sub(r'[\\/*?:"<>|]', "_", company_id)
-    return os.path.join(PROCESSING_LOGS_DIR, f"{safe_company_id}.json")
+# No file-based logging - pure RAM storage only
 
 def generate_document_id(company_id, file_name):
     """Generate a unique document ID based on company name and file name (deterministic)"""
@@ -83,7 +74,7 @@ def load_processing_states(company_id):
 
 def save_processing_states(company_id, states):
     """
-    Save processing states to in-memory storage.
+    Save processing states to in-memory storage (RAM only).
     Also broadcasts updates to all SSE listeners.
     
     Args:
@@ -117,8 +108,8 @@ def cleanup_processing_state(doc_id):
 
 
 # ============================================================================
-# IN-MEMORY PROCESSING STATE STORAGE
-# Replaces JSON file-based storage for better performance
+# RAM-ONLY PROCESSING STATE STORAGE
+# Pure in-memory storage - states are lost on server restart
 # ============================================================================
 
 # Global in-memory storage for processing states
@@ -127,6 +118,8 @@ processing_states_memory = {}
 
 # Note: processing_lock is already defined above (line 51) and will be reused
 # for thread-safe access to processing_states_memory
+
+print("💾 RAM-ONLY MODE: Processing states will be stored in memory only")
 
 # Qdrant configuration
 QDRANT_URL = os.getenv('QDRANT_URL')
