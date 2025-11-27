@@ -192,8 +192,10 @@ def index_company_worker(company_name: str, index_name: str, output_file_path: s
 
             # Only store results for documents where index was found
             if extracted_value is not None:
+                # Remove .json extension from cache filename to get original PDF name
+                original_filename = doc_filename.replace('.json', '')
                 # We store the index_name in the result object itself for easier processing in the db_utils
-                company_results[doc_filename] = {
+                company_results[original_filename] = {
                     "value": extracted_value,
                     "page": found_on_page,
                     "index_name": index_name

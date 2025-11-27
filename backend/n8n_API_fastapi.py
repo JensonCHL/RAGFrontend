@@ -500,7 +500,7 @@ async def search_documents(
             })
 
         return JSONResponse({
-            "success": True,
+            "succeass": True,
             # "query": query,
             "results": formatted_results,
             "count": len(formatted_results)

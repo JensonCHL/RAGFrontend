@@ -1,4 +1,4 @@
-import FloatingNavbar from "@/components/FloatingNavbar";
+import Sidebar from "@/components/Sidebar";
 
 export default function DefaultLayout({
   children,
@@ -6,11 +6,9 @@ export default function DefaultLayout({
   children: React.ReactNode;
 }) {
   return (
-    <>
-      <FloatingNavbar />
-      <div className="pt-16">
-        {children}
-      </div>
-    </>
+    <div className="flex h-screen bg-gray-900 overflow-hidden">
+      <Sidebar />
+      <div className="flex-1 overflow-auto bg-gray-900">{children}</div>
+    </div>
   );
 }

@@ -50,3 +50,6 @@ export interface ProcessingState {
     total_points: number;
   };
 }
+
+// Re-export chat types
+export * from "./chat";

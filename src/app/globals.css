@@ -25,12 +25,57 @@ body {
   font-family: Arial, Helvetica, sans-serif;
 }
 
-/* Ensure input text is always black */
-input, textarea, select {
+/* Ensure input text is visible (but allow components to override) */
+input:not([class*="bg-gray"]),
+textarea:not([class*="bg-gray"]),
+select:not([class*="bg-gray"]) {
   color: #000000 !important;
 }
 
 /* Ensure input placeholders are visible */
-input::placeholder, textarea::placeholder, select::placeholder {
-  color: #6b7280 !important; /* gray-500 */
+input::placeholder,
+textarea::placeholder,
+select::placeholder {
+  opacity: 1;
+}
+
+/* Dark scrollbar for chat textarea */
+textarea.bg-gray-700::-webkit-scrollbar {
+  width: 8px;
+}
+
+textarea.bg-gray-700::-webkit-scrollbar-track {
+  background: #374151; /* gray-700 */
+  border-radius: 4px;
+}
+
+textarea.bg-gray-700::-webkit-scrollbar-thumb {
+  background: #4b5563; /* gray-600 */
+  border-radius: 4px;
+}
+
+textarea.bg-gray-700::-webkit-scrollbar-thumb:hover {
+  background: #6b7280; /* gray-500 */
+}
+
+/* Dark scrollbar for chat messages area and dark backgrounds */
+.bg-gray-900::-webkit-scrollbar,
+.overflow-y-auto::-webkit-scrollbar {
+  width: 8px;
+}
+
+.bg-gray-900::-webkit-scrollbar-track,
+.overflow-y-auto::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.bg-gray-900::-webkit-scrollbar-thumb,
+.overflow-y-auto::-webkit-scrollbar-thumb {
+  background: rgba(75, 85, 99, 0.5); /* semi-transparent gray-600 */
+  border-radius: 4px;
+}
+
+.bg-gray-900::-webkit-scrollbar-thumb:hover,
+.overflow-y-auto::-webkit-scrollbar-thumb:hover {
+  background: rgba(107, 114, 128, 0.7); /* semi-transparent gray-500 */
 }

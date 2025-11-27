@@ -1,35 +1,45 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import CompanyCard from '@/components/CompanyCard';
-import FolderUpload from '@/components/FolderUpload';
-import CompanyCreationForm from '@/components/CompanyCreationForm';
-import ProcessingProgressDisplay from '@/components/ProcessingProgressDisplay';
-import UploadProgressBar from '@/components/UploadProgressBar';
-import SearchBar from '@/components/SearchBar';
-import ErrorMessage from '@/components/ErrorMessage';
-import NoCompaniesFoundMessage from '@/components/NoCompaniesFoundMessage';
-import CompanyDetailModal from '@/components/CompanyDetailModal';
-import ProcessingMonitor from '@/components/ProcessingMonitor';
-import Link from 'next/link';
-import { Contract, Company, QdrantDocumentMetadata, QdrantCompany, ProcessingState } from '@/types';
-import { convertKeysToCamelCase } from '@/utils/data-transformers';
-import DefaultLayout from '../default-layout';
+import { useState, useEffect } from "react";
+import CompanyCard from "@/components/CompanyCard";
+import FolderUpload from "@/components/FolderUpload";
+import CompanyCreationForm from "@/components/CompanyCreationForm";
+import ProcessingProgressDisplay from "@/components/ProcessingProgressDisplay";
+import UploadProgressBar from "@/components/UploadProgressBar";
+import SearchBar from "@/components/SearchBar";
+import ErrorMessage from "@/components/ErrorMessage";
+import NoCompaniesFoundMessage from "@/components/NoCompaniesFoundMessage";
+import CompanyDetailModal from "@/components/CompanyDetailModal";
+import ProcessingMonitor from "@/components/ProcessingMonitor";
+import Link from "next/link";
+import {
+  Contract,
+  Company,
+  QdrantDocumentMetadata,
+  QdrantCompany,
+  ProcessingState,
+} from "@/types";
+import { convertKeysToCamelCase } from "@/utils/data-transformers";
+import DefaultLayout from "../default-layout";
 // aa
 function FileManagementPage() {
   const [companies, setCompanies] = useState<Company[]>([]);
   const [isCreatingCompany, setIsCreatingCompany] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [qdrantData, setQdrantData] = useState<Record<string, QdrantCompany>>({});
+  const [qdrantData, setQdrantData] = useState<Record<string, QdrantCompany>>(
+    {}
+  );
   const [loadingQdrant, setLoadingQdrant] = useState(true);
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [processingStates, setProcessingStates] = useState<Record<string, ProcessingState>>({});
+  const [processingStates, setProcessingStates] = useState<
+    Record<string, ProcessingState>
+  >({});
   const [selectedCompanies, setSelectedCompanies] = useState<string[]>([]);
 
   // Fetch companies from API
@@ -37,7 +47,7 @@ function FileManagementPage() {
     const loadAllData = async () => {
       try {
         // Load companies
-        const companiesResponse = await fetch('/api/companies');
+        const companiesResponse = await fetch("/api/companies");
         const companiesData = await companiesResponse.json();
 
         if (companiesData.error) {
@@ -45,22 +55,26 @@ function FileManagementPage() {
           setCompanies([]);
         } else {
           // Convert company names to uppercase and sort alphabetically
-          const formattedCompanies = (companiesData.companies || []).map((company: Company) => ({
-            ...company,
-            name: company.name.toUpperCase()
-          })).sort((a: Company, b: Company) => a.name.localeCompare(b.name));
+          const formattedCompanies = (companiesData.companies || [])
+            .map((company: Company) => ({
+              ...company,
+              name: company.name.toUpperCase(),
+            }))
+            .sort((a: Company, b: Company) => a.name.localeCompare(b.name));
 
           setCompanies(formattedCompanies);
         }
       } catch (error) {
-        console.error('Failed to fetch companies:', error);
-        setError('Failed to load companies');
+        console.error("Failed to fetch companies:", error);
+        setError("Failed to load companies");
         setCompanies([]);
       }
 
       // Load Qdrant data
       try {
-        const qdrantResponse = await fetch('/api/proxy/api/companies-with-documents');
+        const qdrantResponse = await fetch(
+          "/api/proxy/api/companies-with-documents"
+        );
         const qdrantData = await qdrantResponse.json();
 
         if (qdrantData.success) {
@@ -69,23 +83,25 @@ function FileManagementPage() {
           Object.entries(qdrantData.data).forEach(([name, documents]) => {
             qdrantRecord[name.toUpperCase()] = {
               name: name.toUpperCase(),
-              documents: documents as Record<string, QdrantDocumentMetadata>
+              documents: documents as Record<string, QdrantDocumentMetadata>,
             };
           });
           setQdrantData(qdrantRecord);
         }
       } catch (err) {
-        console.error('Error fetching Qdrant data:', err);
-        setError('Failed to load processed document data');
+        console.error("Error fetching Qdrant data:", err);
+        setError("Failed to load processed document data");
       }
 
       // Load processing states
       try {
-        const response = await fetch(`/api/proxy/api/document-processing-states?t=${new Date().getTime()}`);
+        const response = await fetch(
+          `/api/proxy/api/document-processing-states?t=${new Date().getTime()}`
+        );
         const allStates = await response.json();
         setProcessingStates(convertKeysToCamelCase(allStates));
       } catch (error) {
-        console.error('Failed to fetch initial processing states:', error);
+        console.error("Failed to fetch initial processing states:", error);
       }
 
       // Set loading to false after all data is loaded
@@ -123,11 +139,11 @@ function FileManagementPage() {
         reconnectTimeout = null;
       }
 
-      console.log('🔌 Connecting to SSE...');
-      eventSource = new EventSource('/api/proxy/events/processing-updates');
+      console.log("🔌 Connecting to SSE...");
+      eventSource = new EventSource("/api/proxy/events/processing-updates");
 
       eventSource.onopen = () => {
-        console.log('✅ SSE Connected');
+        console.log("✅ SSE Connected");
         reconnectAttempts = 0; // Reset on successful connection
       };
 
@@ -136,12 +152,15 @@ function FileManagementPage() {
           const data = JSON.parse(event.data);
 
           // Handle different types of messages
-          if (data.type === 'states_updated') {
+          if (data.type === "states_updated") {
             const newStates = convertKeysToCamelCase(data.states);
-            setProcessingStates(prev => ({ ...prev, ...newStates }));
-          } else if (data.type === 'qdrant_data_updated') {
+            setProcessingStates((prev) => ({ ...prev, ...newStates }));
+          } else if (data.type === "qdrant_data_updated") {
             // Only update Qdrant data for file management context
-            if (data.context === "file_management" || data.context === "general") {
+            if (
+              data.context === "file_management" ||
+              data.context === "general"
+            ) {
               // Debounce Qdrant data updates to prevent excessive re-renders
               if (qdrantUpdateTimeout) {
                 clearTimeout(qdrantUpdateTimeout);
@@ -150,12 +169,15 @@ function FileManagementPage() {
               qdrantUpdateTimeout = setTimeout(() => {
                 const newQdrantData = convertKeysToCamelCase(data.data);
                 setQdrantData(newQdrantData);
-                console.log('Qdrant data updated via SSE:', newQdrantData);
+                console.log("Qdrant data updated via SSE:", newQdrantData);
               }, 300); // 300ms debounce
             }
-          } else if (data.type === 'page_started' || data.type === 'page_completed') {
+          } else if (
+            data.type === "page_started" ||
+            data.type === "page_completed"
+          ) {
             // Update page-level progress for the specific document
-            setProcessingStates(prev => {
+            setProcessingStates((prev) => {
               const updated = { ...prev };
 
               // Find the document with matching currentFile
@@ -165,24 +187,25 @@ function FileManagementPage() {
                     ...state,
                     currentPage: data.page,
                     totalPages: data.total_pages,
-                    completedPages: data.completed_pages || state.completedPages
+                    completedPages:
+                      data.completed_pages || state.completedPages,
                   };
                 }
               });
 
               return updated;
             });
-          } else if (data.type === 'indexing_status') {
+          } else if (data.type === "indexing_status") {
             // Indexing updates - just log, don't cause re-renders
-            console.log('📑 Indexing:', data.message);
+            console.log("📑 Indexing:", data.message);
           }
         } catch (error) {
-          console.error('Failed to parse SSE message:', error);
+          console.error("Failed to parse SSE message:", error);
         }
       };
 
       eventSource.onerror = (error) => {
-        console.error('❌ SSE error:', error);
+        console.error("❌ SSE error:", error);
 
         // Close the failed connection
         if (eventSource) {
@@ -195,13 +218,22 @@ function FileManagementPage() {
           reconnectAttempts++;
 
           // Exponential backoff: 2s, 4s, 8s, 16s, max 30s
-          const delay = Math.min(BASE_RECONNECT_DELAY * Math.pow(2, reconnectAttempts - 1), 30000);
+          const delay = Math.min(
+            BASE_RECONNECT_DELAY * Math.pow(2, reconnectAttempts - 1),
+            30000
+          );
 
-          console.log(`🔄 Reconnecting in ${delay / 1000}s (attempt ${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS})...`);
+          console.log(
+            `🔄 Reconnecting in ${
+              delay / 1000
+            }s (attempt ${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS})...`
+          );
 
           reconnectTimeout = setTimeout(setupEventSource, delay);
         } else {
-          console.error('❌ Max reconnection attempts reached. Please refresh the page.');
+          console.error(
+            "❌ Max reconnection attempts reached. Please refresh the page."
+          );
         }
       };
     };
@@ -210,7 +242,7 @@ function FileManagementPage() {
 
     // Cleanup function
     return () => {
-      console.log('🔌 Cleaning up SSE connection');
+      console.log("🔌 Cleaning up SSE connection");
 
       if (eventSource) {
         eventSource.close();
@@ -242,11 +274,11 @@ function FileManagementPage() {
       return;
     }
 
-    setSelectedCompanies(prev => {
+    setSelectedCompanies((prev) => {
       if (checked) {
         return [...prev, companyId];
       } else {
-        return prev.filter(id => id !== companyId);
+        return prev.filter((id) => id !== companyId);
       }
     });
   };
@@ -254,25 +286,27 @@ function FileManagementPage() {
   const handleSelectAllChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.checked) {
       // Filter out companies that are currently processing and only select unsynced companies
-      const selectableCompanyIds = visibleCompanyIds.filter((companyId: string) => {
-        const company = companies.find(c => c.id === companyId);
-        if (!company) return false;
+      const selectableCompanyIds = visibleCompanyIds.filter(
+        (companyId: string) => {
+          const company = companies.find((c) => c.id === companyId);
+          if (!company) return false;
 
-        // Check if company has unsynced documents
-        const isUnsynced = hasUnsyncedDocuments(company);
-        if (!isUnsynced) return false;
+          // Check if company has unsynced documents
+          const isUnsynced = hasUnsyncedDocuments(company);
+          if (!isUnsynced) return false;
 
-        // Check if company is currently processing
-        const companyProcessingStates = Object.values(processingStates).filter(
-          (state) => state.companyId === companyId
-        );
+          // Check if company is currently processing
+          const companyProcessingStates = Object.values(
+            processingStates
+          ).filter((state) => state.companyId === companyId);
 
-        const isAnyDocumentProcessing = companyProcessingStates.some(
-          (state) => state.isProcessing
-        );
+          const isAnyDocumentProcessing = companyProcessingStates.some(
+            (state) => state.isProcessing
+          );
 
-        return !isAnyDocumentProcessing;
-      });
+          return !isAnyDocumentProcessing;
+        }
+      );
 
       setSelectedCompanies(selectableCompanyIds);
     } else {
@@ -282,33 +316,39 @@ function FileManagementPage() {
 
   const handleProcessSelected = async () => {
     setError(null);
-    const jobs = selectedCompanies.map(companyId => {
-      const company = companies.find(c => c.id === companyId);
-      if (!company) return null;
+    const jobs = selectedCompanies
+      .map((companyId) => {
+        const company = companies.find((c) => c.id === companyId);
+        if (!company) return null;
 
-      const qdrantCompanyData = qdrantData[company.name];
-      const syncedDocs = qdrantCompanyData ? Object.keys(qdrantCompanyData.documents) : [];
-      const unsyncedFiles = company.contracts
-        .filter(contract => !syncedDocs.includes(contract.name))
-        .map(doc => doc.name);
+        const qdrantCompanyData = qdrantData[company.name];
+        const syncedDocs = qdrantCompanyData
+          ? Object.keys(qdrantCompanyData.documents)
+          : [];
+        const unsyncedFiles = company.contracts
+          .filter((contract) => !syncedDocs.includes(contract.name))
+          .map((doc) => doc.name);
 
-      if (unsyncedFiles.length > 0) {
-        return {
-          company_id: companyId,
-          files: unsyncedFiles
-        };
-      }
-      return null;
-    }).filter((job): job is { company_id: string; files: string[] } => job !== null);
+        if (unsyncedFiles.length > 0) {
+          return {
+            company_id: companyId,
+            files: unsyncedFiles,
+          };
+        }
+        return null;
+      })
+      .filter(
+        (job): job is { company_id: string; files: string[] } => job !== null
+      );
 
     if (jobs.length === 0) {
-      setError('No unsynced documents found for the selected companies.');
+      setError("No unsynced documents found for the selected companies.");
       return;
     }
 
     // ✅ OPTIMISTIC UI UPDATE: Immediately show processing state
     const optimisticStates: Record<string, any> = {};
-    jobs.forEach(job => {
+    jobs.forEach((job) => {
       job.files.forEach((fileName, index) => {
         // Generate same doc_id as backend (must match!)
         const docId = generateDocumentId(job.company_id, fileName);
@@ -324,28 +364,32 @@ function FileManagementPage() {
           progress: 0,
           message: `Starting processing for ${fileName}...`,
           steps: {},
-          startTime: Date.now()
+          startTime: Date.now(),
         };
       });
     });
 
     // Update UI immediately (optimistic)
-    setProcessingStates(prev => ({ ...prev, ...optimisticStates }));
+    setProcessingStates((prev) => ({ ...prev, ...optimisticStates }));
 
     // Call the API for each job in parallel using Promise.allSettled to track all results
     try {
       const results = await Promise.allSettled(
-        jobs.map(job =>
-          fetch('/api/proxy/api/process-documents', {
-            method: 'POST',
+        jobs.map((job) =>
+          fetch("/api/proxy/api/process-documents", {
+            method: "POST",
             headers: {
-              'Content-Type': 'application/json',
+              "Content-Type": "application/json",
             },
-            body: JSON.stringify(job)
-          }).then(async response => {
+            body: JSON.stringify(job),
+          }).then(async (response) => {
             if (!response.ok) {
-              const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
-              throw new Error(`${job.company_id}: ${errorData.error || response.statusText}`);
+              const errorData = await response
+                .json()
+                .catch(() => ({ error: "Unknown error" }));
+              throw new Error(
+                `${job.company_id}: ${errorData.error || response.statusText}`
+              );
             }
             return { company_id: job.company_id, success: true };
           })
@@ -357,19 +401,19 @@ function FileManagementPage() {
       const failed: { company: string; reason: string }[] = [];
 
       results.forEach((result, index) => {
-        if (result.status === 'fulfilled') {
+        if (result.status === "fulfilled") {
           successful.push(jobs[index].company_id);
         } else {
           failed.push({
             company: jobs[index].company_id,
-            reason: result.reason?.message || 'Unknown error'
+            reason: result.reason?.message || "Unknown error",
           });
 
           // Remove optimistic states for failed jobs
           const failedJob = jobs[index];
-          setProcessingStates(prev => {
+          setProcessingStates((prev) => {
             const updated = { ...prev };
-            failedJob.files.forEach(fileName => {
+            failedJob.files.forEach((fileName) => {
               const docId = generateDocumentId(failedJob.company_id, fileName);
               delete updated[docId];
             });
@@ -380,18 +424,22 @@ function FileManagementPage() {
 
       // Provide feedback to user
       if (failed.length > 0) {
-        const failedList = failed.map(f => f.company).join(', ');
-        setError(`Started processing ${successful.length}/${jobs.length} companies. Failed: ${failedList}`);
-        console.error('Failed jobs:', failed);
+        const failedList = failed.map((f) => f.company).join(", ");
+        setError(
+          `Started processing ${successful.length}/${jobs.length} companies. Failed: ${failedList}`
+        );
+        console.error("Failed jobs:", failed);
       } else {
-        console.log(`Successfully started processing for all ${successful.length} companies`);
+        console.log(
+          `Successfully started processing for all ${successful.length} companies`
+        );
       }
 
       // Deselect all after starting the jobs
       setSelectedCompanies([]);
     } catch (error) {
-      console.error('Error dispatching batch processing jobs:', error);
-      setError('An error occurred while starting the processing jobs.');
+      console.error("Error dispatching batch processing jobs:", error);
+      setError("An error occurred while starting the processing jobs.");
     }
   };
 
@@ -401,14 +449,14 @@ function FileManagementPage() {
     // Use a temporary ID format that won't conflict with backend IDs
     // Format: temp_{companyId}_{fileName}_{timestamp}
     const timestamp = Date.now();
-    const sanitized = `${companyId}_${fileName}`.replace(/[^a-zA-Z0-9_]/g, '_');
+    const sanitized = `${companyId}_${fileName}`.replace(/[^a-zA-Z0-9_]/g, "_");
     return `temp_${sanitized}_${timestamp}`;
   };
 
   const fetchCompanies = async () => {
     try {
       setError(null);
-      const response = await fetch('/api/companies');
+      const response = await fetch("/api/companies");
       const data = await response.json();
 
       if (data.error) {
@@ -416,16 +464,18 @@ function FileManagementPage() {
         setCompanies([]);
       } else {
         // Convert company names to uppercase and sort alphabetically
-        const formattedCompanies = (data.companies || []).map((company: Company) => ({
-          ...company,
-          name: company.name.toUpperCase()
-        })).sort((a: Company, b: Company) => a.name.localeCompare(b.name));
+        const formattedCompanies = (data.companies || [])
+          .map((company: Company) => ({
+            ...company,
+            name: company.name.toUpperCase(),
+          }))
+          .sort((a: Company, b: Company) => a.name.localeCompare(b.name));
 
         setCompanies(formattedCompanies);
       }
     } catch (error) {
-      console.error('Failed to fetch companies:', error);
-      setError('Failed to load companies');
+      console.error("Failed to fetch companies:", error);
+      setError("Failed to load companies");
       setCompanies([]);
     }
   };
@@ -433,10 +483,10 @@ function FileManagementPage() {
   const fetchQdrantData = async () => {
     try {
       setLoadingQdrant(true);
-      const response = await fetch('/api/proxy/api/companies-with-documents');
+      const response = await fetch("/api/proxy/api/companies-with-documents");
       const data = await response.json();
 
-      console.log('Fetched Qdrant data:', data); // Debug log
+      console.log("Fetched Qdrant data:", data); // Debug log
 
       if (data.success) {
         // Transform the data into a record for easy lookup
@@ -444,14 +494,14 @@ function FileManagementPage() {
         Object.entries(data.data).forEach(([name, documents]) => {
           qdrantRecord[name.toUpperCase()] = {
             name: name.toUpperCase(),
-            documents: documents as Record<string, QdrantDocumentMetadata>
+            documents: documents as Record<string, QdrantDocumentMetadata>,
           };
         });
         setQdrantData(qdrantRecord);
       }
     } catch (err) {
-      console.error('Error fetching Qdrant data:', err);
-      setError('Failed to load processed document data');
+      console.error("Error fetching Qdrant data:", err);
+      setError("Failed to load processed document data");
     } finally {
       setLoadingQdrant(false);
     }
@@ -460,13 +510,18 @@ function FileManagementPage() {
   const handleFolderUpload = async (folderName: string, files: File[]) => {
     try {
       // Validate folder structure - reject nested folders
-      const hasNestedFolders = files.some(file => {
+      const hasNestedFolders = files.some((file) => {
         // Check if file path contains subdirectories
-        return file.webkitRelativePath && file.webkitRelativePath.split('/').length > 2;
+        return (
+          file.webkitRelativePath &&
+          file.webkitRelativePath.split("/").length > 2
+        );
       });
 
       if (hasNestedFolders) {
-        setError('Nested folders are not allowed. Please upload folders with files directly inside them.');
+        setError(
+          "Nested folders are not allowed. Please upload folders with files directly inside them."
+        );
         return;
       }
 
@@ -474,15 +529,17 @@ function FileManagementPage() {
       const upperCaseFolderName = folderName.toUpperCase();
 
       // Check for duplicate company name
-      const existingCompany = companies.find(company => company.name === upperCaseFolderName);
+      const existingCompany = companies.find(
+        (company) => company.name === upperCaseFolderName
+      );
       if (existingCompany) {
         // Automatically add files to existing company without confirmation
         console.log(`Adding files to existing company: ${upperCaseFolderName}`);
       }
 
       const formData = new FormData();
-      files.forEach(file => formData.append('files', file));
-      formData.append('companyName', upperCaseFolderName);
+      files.forEach((file) => formData.append("files", file));
+      formData.append("companyName", upperCaseFolderName);
 
       // Show upload progress
       setIsUploading(true);
@@ -491,9 +548,11 @@ function FileManagementPage() {
       const xhr = new XMLHttpRequest();
 
       // Track upload progress
-      xhr.upload.addEventListener('progress', (event) => {
+      xhr.upload.addEventListener("progress", (event) => {
         if (event.lengthComputable) {
-          const percentComplete = Math.round((event.loaded / event.total) * 100);
+          const percentComplete = Math.round(
+            (event.loaded / event.total) * 100
+          );
           setUploadProgress(percentComplete);
         }
       });
@@ -509,12 +568,12 @@ function FileManagementPage() {
         };
 
         xhr.onerror = function () {
-          reject(new Error('Network error'));
+          reject(new Error("Network error"));
         };
       });
 
       // Send request
-      xhr.open('POST', '/api/upload');
+      xhr.open("POST", "/api/upload");
       xhr.send(formData);
 
       // Wait for response
@@ -530,8 +589,8 @@ function FileManagementPage() {
       await fetchQdrantData();
       setError(null);
     } catch (error) {
-      console.error('Upload error:', error);
-      setError('Upload failed. Please try again.');
+      console.error("Upload error:", error);
+      setError("Upload failed. Please try again.");
       setUploadProgress(null);
       setIsUploading(false);
     }
@@ -543,16 +602,18 @@ function FileManagementPage() {
       const upperCaseCompanyName = companyName.toUpperCase();
 
       // Check for duplicate company name
-      const existingCompany = companies.find(company => company.name === upperCaseCompanyName);
+      const existingCompany = companies.find(
+        (company) => company.name === upperCaseCompanyName
+      );
       if (existingCompany) {
         setError(`Company "${upperCaseCompanyName}" already exists.`);
         return;
       }
 
-      const response = await fetch('/api/create-company', {
-        method: 'POST',
+      const response = await fetch("/api/create-company", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({ companyName: upperCaseCompanyName }),
       });
@@ -564,20 +625,23 @@ function FileManagementPage() {
         setError(null);
       } else {
         const error = await response.json();
-        setError(error.error || 'Failed to create company');
+        setError(error.error || "Failed to create company");
       }
     } catch (error) {
-      console.error('Create company error:', error);
-      setError('Failed to create company. Please try again.');
+      console.error("Create company error:", error);
+      setError("Failed to create company. Please try again.");
     }
   };
 
   const handleDeleteCompany = async (companyId: string) => {
     // Remove confirmation dialog
     try {
-      const response = await fetch(`/api/delete?companyName=${encodeURIComponent(companyId)}`, {
-        method: 'DELETE',
-      });
+      const response = await fetch(
+        `/api/delete?companyName=${encodeURIComponent(companyId)}`,
+        {
+          method: "DELETE",
+        }
+      );
 
       if (response.ok) {
         // Refresh the company list
@@ -587,20 +651,28 @@ function FileManagementPage() {
         setError(null);
       } else {
         const error = await response.json();
-        setError(error.error || 'Failed to delete company');
+        setError(error.error || "Failed to delete company");
       }
     } catch (error) {
-      console.error('Delete company error:', error);
-      setError('Failed to delete company. Please try again.');
+      console.error("Delete company error:", error);
+      setError("Failed to delete company. Please try again.");
     }
   };
 
-  const handleDeleteContract = async (companyId: string, contractName: string) => {
+  const handleDeleteContract = async (
+    companyId: string,
+    contractName: string
+  ) => {
     // Remove confirmation dialog
     try {
-      const response = await fetch(`/api/delete?companyName=${encodeURIComponent(companyId)}&fileName=${encodeURIComponent(contractName)}`, {
-        method: 'DELETE',
-      });
+      const response = await fetch(
+        `/api/delete?companyName=${encodeURIComponent(
+          companyId
+        )}&fileName=${encodeURIComponent(contractName)}`,
+        {
+          method: "DELETE",
+        }
+      );
 
       if (response.ok) {
         // Refresh the company list
@@ -611,41 +683,48 @@ function FileManagementPage() {
 
         // Update the selectedCompany state in the modal if it's open
         if (selectedCompany && selectedCompany.id === companyId) {
-          setSelectedCompany(prev => {
+          setSelectedCompany((prev) => {
             if (!prev) return null;
             return {
               ...prev,
-              contracts: prev.contracts.filter(contract => contract.name !== contractName)
+              contracts: prev.contracts.filter(
+                (contract) => contract.name !== contractName
+              ),
             };
           });
         }
       } else {
         const error = await response.json();
-        setError(error.error || 'Failed to delete contract');
+        setError(error.error || "Failed to delete contract");
       }
     } catch (error) {
-      console.error('Delete contract error:', error);
-      setError('Failed to delete contract. Please try again.');
+      console.error("Delete contract error:", error);
+      setError("Failed to delete contract. Please try again.");
     }
   };
 
   const handleAddContracts = async (companyId: string, files: File[]) => {
     try {
       // Validate files - reject if any are in subfolders
-      const hasNestedFolders = files.some(file => {
-        return file.webkitRelativePath && file.webkitRelativePath.split('/').length > 2;
+      const hasNestedFolders = files.some((file) => {
+        return (
+          file.webkitRelativePath &&
+          file.webkitRelativePath.split("/").length > 2
+        );
       });
 
       if (hasNestedFolders) {
-        setError('Nested folders are not allowed. Please upload folders with files directly inside them.');
+        setError(
+          "Nested folders are not allowed. Please upload folders with files directly inside them."
+        );
         return;
       }
 
       // Check for duplicate file names
-      const company = companies.find(c => c.id === companyId);
+      const company = companies.find((c) => c.id === companyId);
       if (company) {
-        const duplicateFiles = files.filter(file =>
-          company.contracts.some(contract => contract.name === file.name)
+        const duplicateFiles = files.filter((file) =>
+          company.contracts.some((contract) => contract.name === file.name)
         );
 
         if (duplicateFiles.length > 0) {
@@ -655,8 +734,8 @@ function FileManagementPage() {
       }
 
       const formData = new FormData();
-      files.forEach(file => formData.append('files', file));
-      formData.append('companyName', companyId);
+      files.forEach((file) => formData.append("files", file));
+      formData.append("companyName", companyId);
 
       // Show upload progress
       setIsUploading(true);
@@ -665,9 +744,11 @@ function FileManagementPage() {
       const xhr = new XMLHttpRequest();
 
       // Track upload progress
-      xhr.upload.addEventListener('progress', (event) => {
+      xhr.upload.addEventListener("progress", (event) => {
         if (event.lengthComputable) {
-          const percentComplete = Math.round((event.loaded / event.total) * 100);
+          const percentComplete = Math.round(
+            (event.loaded / event.total) * 100
+          );
           setUploadProgress(percentComplete);
         }
       });
@@ -683,12 +764,12 @@ function FileManagementPage() {
         };
 
         xhr.onerror = function () {
-          reject(new Error('Network error'));
+          reject(new Error("Network error"));
         };
       });
 
       // Send request
-      xhr.open('POST', '/api/upload');
+      xhr.open("POST", "/api/upload");
       xhr.send(formData);
 
       // Wait for response
@@ -707,21 +788,23 @@ function FileManagementPage() {
       // Update the selectedCompany state in the modal if it's open
       if (selectedCompany && selectedCompany.id === companyId) {
         // Refresh the selected company data
-        const updatedCompaniesResponse = await fetch('/api/companies');
+        const updatedCompaniesResponse = await fetch("/api/companies");
         const updatedCompaniesData = await updatedCompaniesResponse.json();
         if (updatedCompaniesData.companies) {
-          const updatedCompany = updatedCompaniesData.companies.find((c: Company) => c.id === companyId);
+          const updatedCompany = updatedCompaniesData.companies.find(
+            (c: Company) => c.id === companyId
+          );
           if (updatedCompany) {
             setSelectedCompany({
               ...updatedCompany,
-              name: updatedCompany.name.toUpperCase()
+              name: updatedCompany.name.toUpperCase(),
             });
           }
         }
       }
     } catch (error) {
-      console.error('Upload contracts error:', error);
-      setError('Failed to upload contracts. Please try again.');
+      console.error("Upload contracts error:", error);
+      setError("Failed to upload contracts. Please try again.");
       setUploadProgress(null);
       setIsUploading(false);
     }
@@ -730,35 +813,39 @@ function FileManagementPage() {
   const handleProcessUnsyncedDocuments = async (companyId: string) => {
     try {
       // Get the company data
-      const company = companies.find(c => c.id === companyId);
+      const company = companies.find((c) => c.id === companyId);
       if (!company) {
-        setError('Company not found');
+        setError("Company not found");
         return;
       }
 
       // Get unsynced documents
       const qdrantCompanyData = qdrantData[company.name];
-      const syncedDocs = qdrantCompanyData ? Object.keys(qdrantCompanyData.documents) : [];
-      const unsyncedDocs = company.contracts.filter(contract => !syncedDocs.includes(contract.name));
+      const syncedDocs = qdrantCompanyData
+        ? Object.keys(qdrantCompanyData.documents)
+        : [];
+      const unsyncedDocs = company.contracts.filter(
+        (contract) => !syncedDocs.includes(contract.name)
+      );
 
       if (unsyncedDocs.length === 0) {
-        setError('No unsynced documents found');
+        setError("No unsynced documents found");
         return;
       }
 
       // Prepare the files list for the API
-      const filesToProcess = unsyncedDocs.map(doc => doc.name);
+      const filesToProcess = unsyncedDocs.map((doc) => doc.name);
 
       // Call the new processing API endpoint
-      const response = await fetch('/api/proxy/api/process-documents', {
-        method: 'POST',
+      const response = await fetch("/api/proxy/api/process-documents", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
           company_id: companyId,
-          files: filesToProcess
-        })
+          files: filesToProcess,
+        }),
       });
 
       if (!response.ok) {
@@ -767,10 +854,13 @@ function FileManagementPage() {
 
       // The backend now handles streaming and updates the Qdrant data via SSE
       // The frontend will receive updates via the SSE connection
-
     } catch (error) {
-      console.error('Process unsynced documents error:', error);
-      setError(`Failed to process unsynced documents: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      console.error("Process unsynced documents error:", error);
+      setError(
+        `Failed to process unsynced documents: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`
+      );
 
       // Update processing state to show error - we don't have doc_id here, so we can't update specific state
       // The SSE updates will eventually reflect the error state
@@ -793,44 +883,54 @@ function FileManagementPage() {
   };
 
   // Filter companies based on search term
-  const filteredCompanies = companies.filter(company => {
-    if (!searchTerm.trim()) return true;
+  const filteredCompanies = companies
+    .filter((company) => {
+      if (!searchTerm.trim()) return true;
 
-    const term = searchTerm.toLowerCase();
-    return (
-      company.name.toLowerCase().includes(term) ||
-      company.contracts.some(contract =>
-        contract.name.toLowerCase().includes(term)
-      )
-    );
-  }).sort((a, b) => {
-    // Determine sync status for sorting
-    const aQdrantData = qdrantData[a.name];
-    const bQdrantData = qdrantData[b.name];
+      const term = searchTerm.toLowerCase();
+      return (
+        company.name.toLowerCase().includes(term) ||
+        company.contracts.some((contract) =>
+          contract.name.toLowerCase().includes(term)
+        )
+      );
+    })
+    .sort((a, b) => {
+      // Determine sync status for sorting
+      const aQdrantData = qdrantData[a.name];
+      const bQdrantData = qdrantData[b.name];
 
-    const aSyncedDocs = aQdrantData ? Object.keys(aQdrantData.documents) : [];
-    const bSyncedDocs = bQdrantData ? Object.keys(bQdrantData.documents) : [];
+      const aSyncedDocs = aQdrantData ? Object.keys(aQdrantData.documents) : [];
+      const bSyncedDocs = bQdrantData ? Object.keys(bQdrantData.documents) : [];
 
-    const aUnsyncedCount = a.contracts.filter(contract => !aSyncedDocs.includes(contract.name)).length;
-    const bUnsyncedCount = b.contracts.filter(contract => !bSyncedDocs.includes(contract.name)).length;
+      const aUnsyncedCount = a.contracts.filter(
+        (contract) => !aSyncedDocs.includes(contract.name)
+      ).length;
+      const bUnsyncedCount = b.contracts.filter(
+        (contract) => !bSyncedDocs.includes(contract.name)
+      ).length;
 
-    // Sort unsynced companies to the top (higher unsynced count first)
-    if (aUnsyncedCount > 0 && bUnsyncedCount === 0) return -1;
-    if (aUnsyncedCount === 0 && bUnsyncedCount > 0) return 1;
+      // Sort unsynced companies to the top (higher unsynced count first)
+      if (aUnsyncedCount > 0 && bUnsyncedCount === 0) return -1;
+      if (aUnsyncedCount === 0 && bUnsyncedCount > 0) return 1;
 
-    // If both are unsynced or both are synced, sort alphabetically
-    return a.name.localeCompare(b.name);
-  });
+      // If both are unsynced or both are synced, sort alphabetically
+      return a.name.localeCompare(b.name);
+    });
 
   // Helper function to determine if a company has unsynced documents
   const hasUnsyncedDocuments = (company: Company) => {
     const qdrantCompanyData = qdrantData[company.name];
-    const syncedDocs = qdrantCompanyData ? Object.keys(qdrantCompanyData.documents) : [];
-    return company.contracts.some(contract => !syncedDocs.includes(contract.name));
+    const syncedDocs = qdrantCompanyData
+      ? Object.keys(qdrantCompanyData.documents)
+      : [];
+    return company.contracts.some(
+      (contract) => !syncedDocs.includes(contract.name)
+    );
   };
 
   // Derived state for convenience - MUST be after filteredCompanies is defined
-  const visibleCompanyIds = filteredCompanies.map(c => c.id);
+  const visibleCompanyIds = filteredCompanies.map((c) => c.id);
 
   // Filter out processing companies from visibleCompanyIds for selection purposes
   const selectableCompanyIds = visibleCompanyIds.filter((companyId: string) => {
@@ -845,16 +945,19 @@ function FileManagementPage() {
     return !isAnyDocumentProcessing;
   });
 
-  const isAllSelected = selectableCompanyIds.length > 0 &&
-    selectedCompanies.length === selectableCompanyIds.filter((companyId: string) => {
-      const company = companies.find(c => c.id === companyId);
-      return company && hasUnsyncedDocuments(company);
-    }).length;
+  const isAllSelected =
+    selectableCompanyIds.length > 0 &&
+    selectedCompanies.length ===
+      selectableCompanyIds.filter((companyId: string) => {
+        const company = companies.find((c) => c.id === companyId);
+        return company && hasUnsyncedDocuments(company);
+      }).length;
 
   // Check if all visible companies are processing (to disable Select All)
-  const areAllCompaniesProcessing = visibleCompanyIds.length > 0 &&
+  const areAllCompaniesProcessing =
+    visibleCompanyIds.length > 0 &&
     visibleCompanyIds.every((companyId: string) => {
-      const company = companies.find(c => c.id === companyId);
+      const company = companies.find((c) => c.id === companyId);
       if (!company) return true;
 
       // If company has no unsynced documents, don't count it
@@ -874,7 +977,9 @@ function FileManagementPage() {
           <header className="mb-8">
             <div className="flex justify-between items-center">
               <div>
-                <h1 className="text-3xl font-bold text-gray-900">File Management</h1>
+                <h1 className="text-3xl font-bold text-gray-900">
+                  File Management
+                </h1>
                 <p className="text-gray-600 mt-2">
                   Manage company folders and contracts
                 </p>
@@ -883,8 +988,19 @@ function FileManagementPage() {
                 href="/dashboard"
                 className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
               >
-                <svg className="mr-2 -ml-1 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                <svg
+                  className="mr-2 -ml-1 h-5 w-5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                    d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+                  ></path>
                 </svg>
                 View Processed Documents
               </Link>
@@ -908,7 +1024,9 @@ function FileManagementPage() {
         <header className="mb-8">
           <div className="flex justify-between items-center">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">File Management</h1>
+              <h1 className="text-3xl font-bold text-gray-900">
+                File Management
+              </h1>
               <p className="text-gray-600 mt-2">
                 Manage company folders and contracts
               </p>
@@ -917,8 +1035,19 @@ function FileManagementPage() {
               href="/dashboard"
               className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
             >
-              <svg className="mr-2 -ml-1 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+              <svg
+                className="mr-2 -ml-1 h-5 w-5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2"
+                  d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+                ></path>
               </svg>
               View Processed Documents
             </Link>
@@ -931,13 +1060,19 @@ function FileManagementPage() {
         </div>
 
         {/* Upload Progress Bar */}
-        <UploadProgressBar isUploading={isUploading} progress={uploadProgress} />
+        <UploadProgressBar
+          isUploading={isUploading}
+          progress={uploadProgress}
+        />
 
         {/* Processing Monitor */}
         <ProcessingMonitor />
 
         {/* Search Bar - Moved below Upload Section */}
-        <SearchBar searchTerm={searchTerm} onSearchChange={(e) => setSearchTerm(e.target.value)} />
+        <SearchBar
+          searchTerm={searchTerm}
+          onSearchChange={(e) => setSearchTerm(e.target.value)}
+        />
 
         {/* Error Message */}
         <ErrorMessage message={error} />
@@ -976,14 +1111,21 @@ function FileManagementPage() {
             <div className="flex items-center">
               <input
                 type="checkbox"
-                className={`h-5 w-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500 ${areAllCompaniesProcessing ? 'opacity-50 cursor-not-allowed' : ''
-                  }`}
+                className={`h-5 w-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500 ${
+                  areAllCompaniesProcessing
+                    ? "opacity-50 cursor-not-allowed"
+                    : ""
+                }`}
                 checked={isAllSelected}
                 onChange={handleSelectAllChange}
                 disabled={areAllCompaniesProcessing}
               />
-              <label htmlFor="select-all" className={`ml-2 text-sm font-medium ${areAllCompaniesProcessing ? 'text-gray-400' : 'text-gray-700'
-                }`}>
+              <label
+                htmlFor="select-all"
+                className={`ml-2 text-sm font-medium ${
+                  areAllCompaniesProcessing ? "text-gray-400" : "text-gray-700"
+                }`}
+              >
                 Select all unsync
               </label>
             </div>
@@ -1002,7 +1144,7 @@ function FileManagementPage() {
           <NoCompaniesFoundMessage searchTerm={searchTerm} />
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {filteredCompanies.map(company => (
+            {filteredCompanies.map((company) => (
               <CompanyCard
                 key={company.id}
                 company={company}
@@ -1033,8 +1175,6 @@ function FileManagementPage() {
             setError={setError}
           />
         )}
-
-
       </div>
     </div>
   );
@@ -1046,4 +1186,4 @@ export default function FileManagementPageWithLayout() {
       <FileManagementPage />
     </DefaultLayout>
   );
-} 
+}

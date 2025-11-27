@@ -1,2 +1,4 @@
-# backend/core/__init__.py
-# Core utilities and configuration package
+"""Core package initialization"""
+from .config import *
+from .clients import *
+from .state import *
