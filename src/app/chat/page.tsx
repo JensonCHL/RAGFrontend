@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import DefaultLayout from "../default-layout";
 import ChatInterface from "@/components/chat/ChatInterface";
 import Sidebar from "@/components/Sidebar";
+import ChatNavbar from "@/components/ChatNavbar";
 import { Conversation, Message } from "@/types/chat";
 import { v4 as uuidv4 } from "uuid";
 
@@ -51,33 +52,46 @@ function ChatPage() {
   };
 
   const sendMessage = async (content: string) => {
-    if (!activeConversationId) {
-      createNewConversation();
-      return;
+    let conversationId = activeConversationId;
+
+    // Create new conversation if none exists
+    if (!conversationId) {
+      const newConversation: Conversation = {
+        id: uuidv4(),
+        title: "New Conversation",
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        messages: [],
+        user_id: "current-user-id",
+      };
+
+      setConversations([newConversation, ...conversations]);
+      setActiveConversationId(newConversation.id);
+      conversationId = newConversation.id;
     }
 
     const userMessage: Message = {
       id: uuidv4(),
-      conversation_id: activeConversationId,
+      conversation_id: conversationId,
       role: "user",
       content,
       timestamp: new Date().toISOString(),
       status: "sent",
     };
 
-    updateConversationMessages(activeConversationId, userMessage);
+    updateConversationMessages(conversationId, userMessage);
 
     const botMessageId = uuidv4();
     const botMessage: Message = {
       id: botMessageId,
-      conversation_id: activeConversationId,
+      conversation_id: conversationId,
       role: "assistant",
       content: "",
       timestamp: new Date().toISOString(),
       status: "sending",
     };
 
-    updateConversationMessages(activeConversationId, botMessage);
+    updateConversationMessages(conversationId, botMessage);
     setStreamingMessageId(botMessageId);
     setIsLoading(true);
 
@@ -89,12 +103,12 @@ function ChatPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           message: content,
-          conversation_id: activeConversationId,
+          conversation_id: conversationId,
           user_id: "current-user-id",
           timestamp: new Date().toISOString(),
           messages:
             conversations
-              .find((c) => c.id === activeConversationId)
+              .find((c) => c.id === conversationId)
               ?.messages.map((m) => ({
                 role: m.role,
                 content: m.content,
@@ -107,14 +121,11 @@ function ChatPage() {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
-      await handleSSEStream(response, botMessageId, activeConversationId);
+      await handleSSEStream(response, botMessageId, conversationId);
 
-      const conv = conversations.find((c) => c.id === activeConversationId);
+      const conv = conversations.find((c) => c.id === conversationId);
       if (conv && conv.messages.length === 1) {
-        updateConversationTitle(
-          activeConversationId,
-          content.slice(0, 50) + "..."
-        );
+        updateConversationTitle(conversationId, content.slice(0, 50) + "...");
       }
     } catch (error) {
       if (error instanceof Error && error.name === "AbortError") {
@@ -280,6 +291,25 @@ function ChatPage() {
       />
 
       <div className="flex-1 flex flex-col">
+        <ChatNavbar
+          chatTitle={activeConversation?.title || "New Chat"}
+          onMenuClick={() => setIsSidebarOpen(!isSidebarOpen)}
+          onRenameChat={(newTitle) => {
+            if (activeConversationId) {
+              updateConversationTitle(activeConversationId, newTitle);
+            }
+          }}
+          onDeleteChat={() => {
+            if (activeConversationId) {
+              deleteConversation(activeConversationId);
+            }
+          }}
+          onPinChat={() => {
+            // Pin functionality can be implemented later
+            console.log("Pin chat clicked");
+          }}
+          isPinned={false}
+        />
         <ChatInterface
           conversation={activeConversation}
           onSendMessage={sendMessage}

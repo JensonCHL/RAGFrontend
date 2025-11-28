@@ -117,7 +117,7 @@ export default function Sidebar({
       } bg-gray-900 text-white transition-all duration-300 overflow-hidden flex flex-col relative border-r border-gray-700 flex-shrink-0`}
     >
       {/* Logo */}
-      <div className="p-4 border-b border-gray-700">
+      <div className="p-4">
         <img
           src="/cloudeka-logo1.png"
           alt="Cloudeka Logo"
@@ -297,45 +297,6 @@ export default function Sidebar({
           </svg>
         </button>
       )}
-
-      {/* User Profile & Logout - at the bottom */}
-      <div className="mt-auto border-t border-gray-700 p-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white font-medium">
-              U
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-white truncate">User</p>
-              <p className="text-xs text-gray-400 truncate">user@example.com</p>
-            </div>
-          </div>
-          <button
-            onClick={() => {
-              // Add logout logic here
-              if (confirm("Are you sure you want to logout?")) {
-                window.location.href = "/login";
-              }
-            }}
-            className="p-2 text-gray-400 hover:text-white hover:bg-gray-800 rounded-lg transition-colors"
-            title="Logout"
-          >
-            <svg
-              className="w-5 h-5"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
-              />
-            </svg>
-          </button>
-        </div>
-      </div>
     </div>
   );
 }

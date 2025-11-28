@@ -11,6 +11,8 @@ interface ChatInterfaceProps {
   isLoading: boolean;
   onStopStreaming?: () => void;
   streamingMessageId?: string | null;
+  onEditMessage?: (messageId: string, newContent: string) => void;
+  onResendMessage?: (content: string) => void;
 }
 
 export default function ChatInterface({
@@ -19,43 +21,33 @@ export default function ChatInterface({
   isLoading,
   onStopStreaming,
   streamingMessageId,
+  onEditMessage,
+  onResendMessage,
 }: ChatInterfaceProps) {
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (messagesContainerRef.current) {
+      messagesContainerRef.current.scrollTop =
+        messagesContainerRef.current.scrollHeight;
+    }
   }, [conversation?.messages]);
 
   if (!conversation) {
     return (
-      <div className="flex-1 flex items-center justify-center">
-        <div className="text-center">
-          <h2 className="text-2xl font-semibold text-gray-100 mb-2">
-            Welcome to Chat
-          </h2>
-          <p className="text-gray-400">Start a new conversation to begin</p>
-        </div>
-      </div>
-    );
-  }
+      <div className="flex-1 flex flex-col items-center justify-center px-4 pb-32">
+        <div className="w-full max-w-4xl space-y-12">
+          {/* Greeting */}
+          <div className="text-center space-y-2">
+            <h1 className="text-5xl font-medium bg-gradient-to-r from-[#3F81F7] to-[#2563eb] bg-clip-text text-transparent">
+              Hello, User
+            </h1>
+            <p className="text-xl text-gray-400">How can I help you today?</p>
+          </div>
 
-  return (
-    <div className="flex-1 flex flex-col h-full">
-      {conversation.messages.length === 0 ? (
-        // Empty state - centered input
-        <div className="flex-1 flex flex-col items-center justify-center px-4">
-          <div className="w-full max-w-3xl space-y-8">
-            <div className="text-center">
-              <h3 className="text-3xl font-semibold text-gray-100 mb-3">
-                How can I help you today?
-              </h3>
-              <p className="text-gray-400">
-                Ask me anything about your documents and I'll search through
-                your knowledge base.
-              </p>
-            </div>
-
-            <div className="w-full">
+          {/* Floating Island Input */}
+          <div className="w-full max-w-3xl mx-auto">
+            <div className="bg-gray-800 rounded-3xl shadow-2xl border border-gray-700 p-1">
               <ChatInput
                 onSend={onSendMessage}
                 disabled={isLoading}
@@ -65,27 +57,68 @@ export default function ChatInterface({
             </div>
           </div>
         </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex-1 flex flex-col h-full overflow-hidden">
+      {conversation.messages.length === 0 ? (
+        // Empty state - Gemini-style greeting with floating input
+        <div className="flex-1 flex flex-col items-center justify-center px-4 pb-32">
+          <div className="w-full max-w-4xl space-y-12">
+            {/* Greeting */}
+            <div className="text-center space-y-2">
+              <h1 className="text-5xl font-medium bg-gradient-to-r from-[#3F81F7] to-[#2563eb] bg-clip-text text-transparent">
+                Hello, User
+              </h1>
+              <p className="text-xl text-gray-400">How can I help you today?</p>
+            </div>
+
+            {/* Floating Island Input */}
+            <div className="w-full max-w-3xl mx-auto">
+              <div className="bg-gray-800 rounded-3xl shadow-2xl border border-gray-700 p-1">
+                <ChatInput
+                  onSend={onSendMessage}
+                  disabled={isLoading}
+                  isStreaming={isLoading}
+                  onStop={onStopStreaming}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
       ) : (
         // Messages exist - normal layout with input at bottom
         <>
-          <div className="flex-1 overflow-y-auto px-4 py-6 space-y-4">
-            {conversation.messages.map((message) => (
-              <ChatMessage
-                key={message.id}
-                message={message}
-                isStreaming={message.id === streamingMessageId}
-              />
-            ))}
-            <div ref={messagesEndRef} />
+          <div
+            ref={messagesContainerRef}
+            className="flex-1 overflow-y-auto px-6 py-8"
+          >
+            <div className="max-w-4xl mx-auto">
+              {conversation.messages.map((message) => (
+                <ChatMessage
+                  key={message.id}
+                  message={message}
+                  isStreaming={message.id === streamingMessageId}
+                  onEdit={onEditMessage}
+                  onResend={onResendMessage}
+                />
+              ))}
+            </div>
           </div>
 
-          <div className="border-t border-gray-700 bg-gray-800 px-4 py-4">
-            <ChatInput
-              onSend={onSendMessage}
-              disabled={isLoading}
-              isStreaming={isLoading}
-              onStop={onStopStreaming}
-            />
+          <div className="border-t border-gray-800 bg-gray-900 px-6 py-4">
+            <div className="max-w-4xl mx-auto">
+              <div className="bg-gray-800 rounded-3xl border border-gray-700 p-1">
+                <ChatInput
+                  onSend={onSendMessage}
+                  disabled={isLoading}
+                  isStreaming={isLoading}
+                  onStop={onStopStreaming}
+                />
+              </div>
+            </div>
           </div>
         </>
       )}

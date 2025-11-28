@@ -26,9 +26,9 @@ body {
 }
 
 /* Ensure input text is visible (but allow components to override) */
-input:not([class*="bg-gray"]),
-textarea:not([class*="bg-gray"]),
-select:not([class*="bg-gray"]) {
+input:not([class*="bg-gray"]):not([class*="bg-transparent"]),
+textarea:not([class*="bg-gray"]):not([class*="bg-transparent"]),
+select:not([class*="bg-gray"]):not([class*="bg-transparent"]) {
   color: #000000 !important;
 }
 
@@ -78,4 +78,36 @@ textarea.bg-gray-700::-webkit-scrollbar-thumb:hover {
 .bg-gray-900::-webkit-scrollbar-thumb:hover,
 .overflow-y-auto::-webkit-scrollbar-thumb:hover {
   background: rgba(107, 114, 128, 0.7); /* semi-transparent gray-500 */
+}
+
+/* Gemini-style loading animation */
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.loading-border {
+  position: relative;
+}
+
+.loading-border::before {
+  content: "";
+  position: absolute;
+  inset: -6px; /* Thickness of the border/gap */
+  border-radius: 50%;
+  padding: 2.5px; /* Thickness of the colored ring */
+  background: conic-gradient(
+    from 0deg,
+    transparent 0%,
+    #3b82f6 30%,
+    #ef4444 60%,
+    transparent 100%
+  );
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  animation: spin 1.5s linear infinite;
+  pointer-events: none;
 }
