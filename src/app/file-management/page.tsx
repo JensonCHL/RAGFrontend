@@ -972,15 +972,15 @@ function FileManagementPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 p-8">
+      <div className="min-h-screen bg-transparent dark:bg-transparent p-8 transition-colors duration-300">
         <div className="max-w-7xl mx-auto">
           <header className="mb-8">
             <div className="flex justify-between items-center">
               <div>
-                <h1 className="text-3xl font-bold text-gray-900">
+                <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
                   File Management
                 </h1>
-                <p className="text-gray-600 mt-2">
+                <p className="text-gray-600 dark:text-gray-400 mt-2">
                   Manage company folders and contracts
                 </p>
               </div>
@@ -1007,10 +1007,12 @@ function FileManagementPage() {
             </div>
           </header>
 
-          <div className="bg-white rounded-lg shadow p-8 flex justify-center items-center">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-8 flex justify-center items-center">
             <div className="text-center">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-              <p className="mt-4 text-gray-600">Loading companies...</p>
+              <p className="mt-4 text-gray-600 dark:text-gray-400">
+                Loading companies...
+              </p>
             </div>
           </div>
         </div>
@@ -1019,15 +1021,15 @@ function FileManagementPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-8">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-8 transition-colors duration-300">
       <div className="max-w-7xl mx-auto">
         <header className="mb-8">
           <div className="flex justify-between items-center">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">
+              <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
                 File Management
               </h1>
-              <p className="text-gray-600 mt-2">
+              <p className="text-gray-600 dark:text-gray-400 mt-2">
                 Manage company folders and contracts
               </p>
             </div>
@@ -1080,7 +1082,7 @@ function FileManagementPage() {
         {/* Companies Section */}
         <div className="mb-6">
           <div className="flex justify-between items-center">
-            <h2 className="text-xl font-semibold text-gray-800 flex items-center">
+            <h2 className="text-xl font-semibold text-gray-800 dark:text-white flex items-center">
               Companies ({filteredCompanies.length})
             </h2>
             <div className="flex items-center space-x-4">
@@ -1107,7 +1109,8 @@ function FileManagementPage() {
 
         {/* Selection Controls */}
         {filteredCompanies.length > 0 && (
-          <div className="flex justify-between items-center bg-gray-50 rounded-lg mb-4">
+          <div className="flex justify-between items-center bg-white dark:bg-gray-800 rounded-lg mb-4 transition-colors duration-300">
+            {" "}
             <div className="flex items-center">
               <input
                 type="checkbox"
@@ -1123,7 +1126,9 @@ function FileManagementPage() {
               <label
                 htmlFor="select-all"
                 className={`ml-2 text-sm font-medium ${
-                  areAllCompaniesProcessing ? "text-gray-400" : "text-gray-700"
+                  areAllCompaniesProcessing
+                    ? "text-gray-400"
+                    : "text-gray-700 dark:text-gray-300"
                 }`}
               >
                 Select all unsync

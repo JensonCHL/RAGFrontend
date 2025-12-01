@@ -276,7 +276,7 @@ function ChatPage() {
 
   return (
     <div
-      className="flex overflow-hidden bg-gray-900"
+      className="flex overflow-hidden bg-gray-50 dark:bg-gray-900 transition-colors duration-300"
       style={{ height: "100vh" }}
     >
       <Sidebar

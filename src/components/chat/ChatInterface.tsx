@@ -41,13 +41,15 @@ export default function ChatInterface({
           <div className="text-center space-y-2">
             <h1 className="text-5xl font-medium bg-gradient-to-r from-[#3F81F7] to-[#2563eb] bg-clip-text text-transparent">
               Hello, User
-            </h1>
-            <p className="text-xl text-gray-400">How can I help you today?</p>
+            </h1> 
+            <p className="text-xl text-gray-500 dark:text-gray-400">
+              How can I help you today?
+            </p>
           </div>
 
           {/* Floating Island Input */}
           <div className="w-full max-w-3xl mx-auto">
-            <div className="bg-gray-800 rounded-3xl shadow-2xl border border-gray-700 p-1">
+            <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-2xl border border-gray-200 dark:border-gray-700">
               <ChatInput
                 onSend={onSendMessage}
                 disabled={isLoading}
@@ -62,22 +64,24 @@ export default function ChatInterface({
   }
 
   return (
-    <div className="flex-1 flex flex-col h-full overflow-hidden">
+    <div className="flex-1 flex flex-col h-full overflow-hidden bg-white dark:bg-gray-900 transition-colors duration-300">
       {conversation.messages.length === 0 ? (
         // Empty state - Gemini-style greeting with floating input
         <div className="flex-1 flex flex-col items-center justify-center px-4 pb-32">
           <div className="w-full max-w-4xl space-y-12">
             {/* Greeting */}
             <div className="text-center space-y-2">
-              <h1 className="text-5xl font-medium bg-gradient-to-r from-[#3F81F7] to-[#2563eb] bg-clip-text text-transparent">
+              <h1 className="text-5xl font-medium bg-gradient-to-r from-[#3F81F7] via-[#EF4444] to-[#3F81F7] bg-clip-text text-transparent animate-shimmer">
                 Hello, User
               </h1>
-              <p className="text-xl text-gray-400">How can I help you today?</p>
+              <p className="text-xl text-gray-500 dark:text-gray-400">
+                How can I help you today?
+              </p>
             </div>
 
             {/* Floating Island Input */}
             <div className="w-full max-w-3xl mx-auto">
-              <div className="bg-gray-800 rounded-3xl shadow-2xl border border-gray-700 p-1">
+              <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-2xl border border-gray-200 dark:border-gray-700 transition-colors duration-300">
                 <ChatInput
                   onSend={onSendMessage}
                   disabled={isLoading}
@@ -93,7 +97,7 @@ export default function ChatInterface({
         <>
           <div
             ref={messagesContainerRef}
-            className="flex-1 overflow-y-auto px-6 py-8"
+            className="flex-1 overflow-y-auto px-6 py-8 bg-white dark:bg-gray-900 transition-colors duration-300"
           >
             <div className="max-w-4xl mx-auto">
               {conversation.messages.map((message) => (
@@ -108,9 +112,9 @@ export default function ChatInterface({
             </div>
           </div>
 
-          <div className="border-t border-gray-800 bg-gray-900 px-6 py-4">
+          <div className="border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 px-6 py-4 transition-colors duration-300">
             <div className="max-w-4xl mx-auto">
-              <div className="bg-gray-800 rounded-3xl border border-gray-700 p-1">
+              <div className="bg-white dark:bg-gray-800 rounded-3xl border border-gray-200 dark:border-gray-700 transition-colors duration-300">
                 <ChatInput
                   onSend={onSendMessage}
                   disabled={isLoading}

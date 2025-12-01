@@ -68,16 +68,16 @@ export default function ChatNavbar({
   };
 
   return (
-    <nav className="pt-8 bg-gray-900 flex items-center justify-between px-4 pb-4">
+    <nav className="pt-4 bg-white dark:bg-gray-900 flex items-center justify-between px-4 pb-4 border-b border-gray-200 dark:border-transparent transition-colors duration-300">
       {/* Left: Brand Name */}
       <div className="flex items-center gap-3">
         <button
           onClick={onMenuClick}
-          className="lg:hidden p-2 hover:bg-gray-800 rounded-lg transition-colors"
+          className="lg:hidden p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
           aria-label="Toggle sidebar"
         >
           <svg
-            className="w-5 h-5 text-gray-300"
+            className="w-5 h-5 text-gray-600 dark:text-gray-300"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -90,7 +90,9 @@ export default function ChatNavbar({
             />
           </svg>
         </button>
-        <h1 className="text-xl font-semibold text-white">DekaLLM</h1>
+        <h1 className="text-xl font-semibold text-gray-900 dark:text-white">
+          DekaLLM
+        </h1>
       </div>
 
       {/* Middle: Chat Title with Dropdown */}
@@ -106,18 +108,18 @@ export default function ChatNavbar({
             onChange={(e) => setNewTitle(e.target.value)}
             onBlur={handleRename}
             onKeyDown={handleKeyDown}
-            className="text-lg font-medium text-white bg-gray-800 px-3 py-1 rounded-lg max-w-md w-full text-center focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="text-lg font-medium text-gray-900 dark:text-white bg-gray-100 dark:bg-gray-800 px-3 py-1 rounded-lg max-w-md w-full text-center focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
         ) : (
           <button
             onClick={() => setShowDropdown(!showDropdown)}
-            className="flex items-center gap-2 px-3 py-1 hover:bg-gray-800 rounded-lg transition-colors group"
+            className="flex items-center gap-2 px-3 py-1 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors group"
           >
-            <h2 className="text-lg font-medium text-gray-300 truncate max-w-md">
+            <h2 className="text-lg font-medium text-gray-900 dark:text-gray-300 truncate max-w-md">
               {chatTitle}
             </h2>
             <svg
-              className={`w-4 h-4 text-gray-400 transition-transform ${
+              className={`w-4 h-4 text-gray-500 dark:text-gray-400 transition-transform ${
                 showDropdown ? "rotate-180" : ""
               }`}
               fill="none"
@@ -136,13 +138,13 @@ export default function ChatNavbar({
 
         {/* Dropdown Menu */}
         {showDropdown && !isRenaming && (
-          <div className="absolute top-full mt-2 bg-gray-800 border border-gray-700 rounded-lg shadow-lg py-1 min-w-[200px] z-50">
+          <div className="absolute top-full mt-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg py-1 min-w-[200px] z-50">
             <button
               onClick={() => {
                 onPinChat?.();
                 setShowDropdown(false);
               }}
-              className="w-full px-4 py-2 text-left text-sm text-gray-300 hover:bg-gray-700 flex items-center gap-3"
+              className="w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-3"
             >
               <svg
                 className="w-4 h-4"
@@ -164,7 +166,7 @@ export default function ChatNavbar({
                 setIsRenaming(true);
                 setShowDropdown(false);
               }}
-              className="w-full px-4 py-2 text-left text-sm text-gray-300 hover:bg-gray-700 flex items-center gap-3"
+              className="w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-3"
             >
               <svg
                 className="w-4 h-4"
@@ -188,7 +190,7 @@ export default function ChatNavbar({
                 }
                 setShowDropdown(false);
               }}
-              className="w-full px-4 py-2 text-left text-sm text-red-400 hover:bg-gray-700 flex items-center gap-3"
+              className="w-full px-4 py-2 text-left text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-gray-700 flex items-center gap-3"
             >
               <svg
                 className="w-4 h-4"
@@ -217,13 +219,13 @@ export default function ChatNavbar({
               window.location.href = "/login";
             }
           }}
-          className="flex items-center gap-2 p-2 hover:bg-gray-800 rounded-lg transition-colors group"
+          className="flex items-center gap-2 p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors group"
         >
           <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white font-medium text-lg">
             U
           </div>
           <svg
-            className="w-4 h-4 text-gray-400 group-hover:text-white transition-colors hidden sm:block"
+            className="w-4 h-4 text-gray-500 dark:text-gray-400 group-hover:text-gray-900 dark:group-hover:text-white transition-colors hidden sm:block"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"

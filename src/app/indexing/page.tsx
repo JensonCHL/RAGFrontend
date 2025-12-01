@@ -180,11 +180,13 @@ function IndexingPageContent() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 p-8">
-      <div className="max-w-7xl mx-auto bg-white rounded-lg shadow-md p-8">
-        <header className="border-b border-gray-200 pb-4 mb-6">
-          <h1 className="text-2xl font-bold text-gray-900">Manage Indexes</h1>
-          <p className="text-sm text-gray-600 mt-1">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-8 transition-colors duration-300">
+      <div className="max-w-7xl mx-auto bg-white dark:bg-gray-800 rounded-lg shadow-md p-8 transition-colors duration-300">
+        <header className="border-b border-gray-200 dark:border-gray-700 pb-4 mb-6">
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+            Manage Indexes
+          </h1>
+          <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
             Create a new index or delete an existing one.
           </p>
         </header>
@@ -194,7 +196,7 @@ function IndexingPageContent() {
           <div>
             <label
               htmlFor="indexName"
-              className="block text-sm font-medium text-gray-700"
+              className="block text-sm font-medium text-gray-700 dark:text-gray-300"
             >
               Create New Index
             </label>
@@ -204,7 +206,7 @@ function IndexingPageContent() {
                 id="indexName"
                 value={indexName}
                 onChange={(e) => setIndexName(e.target.value)}
-                className="flex-1 block w-full rounded-none rounded-l-md border-gray-300 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                className="flex-1 block w-full rounded-none rounded-l-md border-gray-300 dark:border-gray-600 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 sm:text-sm"
                 placeholder='e.g., "End Date", "Contract Value"'
                 disabled={isIndexing}
               />
@@ -220,11 +222,11 @@ function IndexingPageContent() {
           </div>
 
           {statusMessages.length > 0 && (
-            <div className="bg-gray-50 rounded-lg p-4">
-              <h2 className="text-lg font-medium text-gray-800 mb-2">
+            <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-4 transition-colors duration-300">
+              <h2 className="text-lg font-medium text-gray-800 dark:text-white mb-2">
                 Indexing Status
               </h2>
-              <div className="max-h-60 overflow-y-auto space-y-2 text-sm text-gray-700 font-mono">
+              <div className="max-h-60 overflow-y-auto space-y-2 text-sm text-gray-700 dark:text-gray-300 font-mono">
                 {statusMessages.map((msg, index) => (
                   <p
                     key={`${index}-${msg}`}
@@ -237,20 +239,23 @@ function IndexingPageContent() {
       </div>
 
       {/* Data Table for Debugging */}
-      <div className="max-w-7xl mx-auto bg-white rounded-lg shadow-md p-8 mt-8">
-        <h2 className="text-xl font-bold text-gray-900 mb-4">
+      <div className="max-w-7xl mx-auto bg-white dark:bg-gray-800 rounded-lg shadow-md p-8 mt-8 transition-colors duration-300">
+        <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">
           Database Content
         </h2>
         <div className="space-y-4">
           {Object.keys(groupedData).length > 0 ? (
             Object.keys(groupedData).map((indexKey) => (
-              <div key={indexKey} className="border border-gray-200 rounded-lg">
-                <div className="w-full flex justify-between items-center p-4 bg-gray-50">
+              <div
+                key={indexKey}
+                className="border border-gray-200 dark:border-gray-700 rounded-lg transition-colors duration-300"
+              >
+                <div className="w-full flex justify-between items-center p-4 bg-gray-50 dark:bg-gray-700 rounded-t-lg">
                   <button
                     onClick={() => toggleAccordion(indexKey)}
                     className="flex-1 flex items-center text-left focus:outline-none"
                   >
-                    <h3 className="text-lg font-medium text-gray-800">
+                    <h3 className="text-lg font-medium text-gray-800 dark:text-white">
                       {indexKey}
                     </h3>
                     <span
@@ -259,7 +264,7 @@ function IndexingPageContent() {
                       }`}
                     >
                       <svg
-                        className="w-5 h-5 text-gray-500"
+                        className="w-5 h-5 text-gray-500 dark:text-gray-400"
                         fill="none"
                         stroke="currentColor"
                         viewBox="0 0 24 24"
@@ -283,48 +288,48 @@ function IndexingPageContent() {
                 </div>
                 {openAccordions[indexKey] && (
                   <div className="overflow-x-auto p-4">
-                    <table className="min-w-full divide-y divide-gray-200">
-                      <thead className="bg-gray-50">
+                    <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                      <thead className="bg-gray-50 dark:bg-gray-700">
                         <tr>
                           <th
                             scope="col"
-                            className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                            className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider"
                           >
                             Company
                           </th>
                           <th
                             scope="col"
-                            className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                            className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider"
                           >
                             File Name
                           </th>
                           <th
                             scope="col"
-                            className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                            className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider"
                           >
                             Value
                           </th>
                           <th
                             scope="col"
-                            className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                            className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider"
                           >
                             Page
                           </th>
                         </tr>
                       </thead>
-                      <tbody className="bg-white divide-y divide-gray-200">
+                      <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                         {groupedData[indexKey].map((row) => (
                           <tr key={row.id}>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                               {row.company_name}
                             </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                               {row.file_name}
                             </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-800 font-medium">
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-800 dark:text-gray-200 font-medium">
                               {String(row.result?.value ?? "N/A")}
                             </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                               {row.result?.page ?? "N/A"}
                             </td>
                           </tr>
@@ -336,7 +341,7 @@ function IndexingPageContent() {
               </div>
             ))
           ) : (
-            <p className="text-center text-gray-500">
+            <p className="text-center text-gray-500 dark:text-gray-400">
               No data in database yet.
             </p>
           )}

@@ -1,7 +1,7 @@
-'use client';
+"use client";
 
-import { useState, useMemo } from 'react';
-import LoadingSpinner from '@/components/LoadingSpinner';
+import { useState, useMemo } from "react";
+import LoadingSpinner from "@/components/LoadingSpinner";
 
 interface Contract {
   name: string;
@@ -80,7 +80,7 @@ export default function CompanyCard({
   onOpenModal,
   allProcessingStates,
   isSelected,
-  onSelectionChange
+  onSelectionChange,
 }: CompanyCardProps) {
   const [isDragging, setIsDragging] = useState(false);
 
@@ -98,7 +98,9 @@ export default function CompanyCard({
 
   // Determine if any document in this company is queued
   const isAnyDocumentQueued = useMemo(() => {
-    return companyProcessingStates.some((state) => state.isQueued && !state.isProcessing);
+    return companyProcessingStates.some(
+      (state) => state.isQueued && !state.isProcessing
+    );
   }, [companyProcessingStates]);
 
   // Determine if any document in this company has an error
@@ -106,21 +108,21 @@ export default function CompanyCard({
     return companyProcessingStates.some((state) => state.isError);
   }, [companyProcessingStates]);
   const formatFileSize = (bytes: number): string => {
-    if (bytes === 0) return '0 Bytes';
+    if (bytes === 0) return "0 Bytes";
     const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const sizes = ["Bytes", "KB", "MB", "GB"];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
   };
 
   const formatDate = (dateString: string): string => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-      timeZone: 'UTC'
+    return new Date(dateString).toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      timeZone: "UTC",
     });
   };
 
@@ -157,7 +159,7 @@ export default function CompanyCard({
     if (e.target.files && e.target.files.length > 0) {
       const files = Array.from(e.target.files);
       onAddContracts(company.id, files);
-      e.target.value = ''; // Reset input
+      e.target.value = ""; // Reset input
     }
   };
 
@@ -169,13 +171,13 @@ export default function CompanyCard({
         syncedCount: 0,
         totalCount: company.contracts.length,
         isSynced: false,
-        hasUnsynced: company.contracts.length > 0
+        hasUnsynced: company.contracts.length > 0,
       };
     }
 
     const syncedDocs = Object.keys(qdrantData.documents);
     const totalDocs = company.contracts.length;
-    const syncedCount = company.contracts.filter(contract =>
+    const syncedCount = company.contracts.filter((contract) =>
       syncedDocs.includes(contract.name)
     ).length;
 
@@ -183,17 +185,17 @@ export default function CompanyCard({
       syncedCount,
       totalCount: totalDocs,
       isSynced: syncedCount === totalDocs && totalDocs > 0,
-      hasUnsynced: syncedCount < totalDocs
+      hasUnsynced: syncedCount < totalDocs,
     };
   };
 
   const syncStatus = getSyncStatus();
 
   return (
-    <div className="bg-white rounded-lg shadow overflow-hidden">
+    <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden transition-colors duration-300">
       {/* Company Header - Windows File Manager Style */}
       <div
-        className="p-4 border-b border-gray-200 hover:bg-gray-50"
+        className="p-4 border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors duration-200"
         // onClick={(e) => {
         //   e.stopPropagation();
         //   onOpenModal(company);
@@ -206,21 +208,20 @@ export default function CompanyCard({
         <div className="flex items-start w-full flex-nowrap">
           <input
             type="checkbox"
-            className={`mt-1 h-5 w-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500 ${isAnyDocumentProcessing ? 'opacity-50 cursor-not-allowed' : ''
-              }`}
+            className={`mt-1 h-5 w-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500 ${
+              isAnyDocumentProcessing ? "opacity-50 cursor-not-allowed" : ""
+            }`}
             checked={isSelected}
             onChange={(e) => onSelectionChange(company.id, e.target.checked)}
             disabled={isAnyDocumentProcessing}
           />
-          <div className="shrink-0 w-10 h-10 bg-blue-100 rounded-md flex items-center justify-center ml-3">
-
+          <div className="shrink-0 w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-md flex items-center justify-center ml-3">
             <svg
-              className="w-6 h-6 text-blue-600 cursor-pointer"
+              className="w-6 h-6 text-blue-600 dark:text-blue-400 cursor-pointer"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
               xmlns="http://www.w3.org/2000/svg"
-
               onClick={(e) => {
                 e.stopPropagation();
                 onOpenModal(company);
@@ -235,13 +236,16 @@ export default function CompanyCard({
             </svg>
           </div>
           <div className="ml-3 flex-grow min-w-0 w-3/4">
-            <h3 className="text-sm font-medium text-gray-900 truncate w-full">{company.name}</h3>
+            <h3 className="text-sm font-medium text-gray-900 dark:text-white truncate w-full">
+              {company.name}
+            </h3>
             <div className="flex flex-wrap items-center mt-1 gap-2 w-full">
-              <span className="text-xs text-gray-500 truncate">
-                {company.contracts.length} item{company.contracts.length !== 1 ? 's' : ''}
+              <span className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                {company.contracts.length} item
+                {company.contracts.length !== 1 ? "s" : ""}
               </span>
-              <span className="text-gray-300">•</span>
-              <span className="text-xs text-gray-500 truncate">
+              <span className="text-gray-300 dark:text-gray-600">•</span>
+              <span className="text-xs text-gray-500 dark:text-gray-400 truncate">
                 {syncStatus.syncedCount}/{syncStatus.totalCount} processed
               </span>
             </div>
@@ -256,7 +260,10 @@ export default function CompanyCard({
                       Error
                     </span>
                   </div>
-                  <span className="text-xs text-red-500 truncate max-w-[120px]" title="Please reload the page to retry">
+                  <span
+                    className="text-xs text-red-500 truncate max-w-[120px]"
+                    title="Please reload the page to retry"
+                  >
                     Please reload
                   </span>
                 </div>
@@ -270,8 +277,12 @@ export default function CompanyCard({
                       Processing...
                     </span>
                   </div>
-                  <span className="text-xs text-gray-500 truncate max-w-[120px]">
-                    {companyProcessingStates.filter(s => s.isProcessing).length} file(s) processing
+                  <span className="text-xs text-gray-500 dark:text-gray-400 truncate max-w-[120px]">
+                    {
+                      companyProcessingStates.filter((s) => s.isProcessing)
+                        .length
+                    }{" "}
+                    file(s) processing
                   </span>
                 </div>
               </div>
@@ -284,8 +295,13 @@ export default function CompanyCard({
                       Queued
                     </span>
                   </div>
-                  <span className="text-xs text-gray-500 truncate max-w-[120px]">
-                    {companyProcessingStates.filter(s => s.isQueued && !s.isProcessing).length} file(s) waiting
+                  <span className="text-xs text-gray-500 dark:text-gray-400 truncate max-w-[120px]">
+                    {
+                      companyProcessingStates.filter(
+                        (s) => s.isQueued && !s.isProcessing
+                      ).length
+                    }{" "}
+                    file(s) waiting
                   </span>
                 </div>
               </div>
@@ -300,11 +316,16 @@ export default function CompanyCard({
                     onProcessUnsynced(company.id);
                   }}
                   disabled={isAnyDocumentInError}
-                  className={`p-1 rounded-lg transition duration-150 ease-in-out ${isAnyDocumentInError
-                    ? 'bg-gray-400 text-gray-200 cursor-not-allowed'
-                    : 'bg-green-600 hover:bg-green-700 text-white'
-                    }`}
-                  title={isAnyDocumentInError ? "Cannot process due to errors" : "Process unsynced documents"}
+                  className={`p-1 rounded-lg transition duration-150 ease-in-out cursor-pointer ${
+                    isAnyDocumentInError
+                      ? "bg-gray-400 text-gray-200 cursor-not-allowed"
+                      : "bg-transparent hover:bg-blue-50 dark:hover:bg-blue-900/20 text-blue-600 dark:text-blue-400"
+                  }`}
+                  title={
+                    isAnyDocumentInError
+                      ? "Cannot process due to errors"
+                      : "Process unsynced documents"
+                  }
                 >
                   <svg
                     className="w-4 h-4"
@@ -327,7 +348,7 @@ export default function CompanyCard({
                 Synced
               </span>
             ) : (
-              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200">
                 Empty
               </span>
             )}
@@ -359,7 +380,11 @@ export default function CompanyCard({
 
       {/* Contracts Grid - Windows File Manager Style */}
       <div
-        className={`p-3 max-h-[180px] overflow-y-auto ${isDragging ? 'bg-blue-50 border-2 border-dashed border-blue-300 rounded' : ''}`}
+        className={`p-3 max-h-[180px] overflow-y-auto ${
+          isDragging
+            ? "bg-blue-50 dark:bg-blue-900/20 border-2 border-dashed border-blue-300 dark:border-blue-700 rounded"
+            : ""
+        }`}
         onDragEnter={handleDragEnter}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
@@ -368,7 +393,8 @@ export default function CompanyCard({
         {company.contracts.length > 0 ? (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
             {company.contracts.map((contract) => {
-              const isSynced = qdrantData && qdrantData.documents[contract.name];
+              const isSynced =
+                qdrantData && qdrantData.documents[contract.name];
               const contractProcessingState = companyProcessingStates.find(
                 (state) => state.currentFile === contract.name
               );
@@ -376,12 +402,12 @@ export default function CompanyCard({
               return (
                 <div
                   key={contract.name}
-                  className="group relative p-2 rounded hover:bg-gray-100"
+                  className="group relative p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-200"
                 >
                   <div className="flex flex-col items-center">
                     <div className="w-12 h-12 flex items-center justify-center">
-                      {contract.name.toLowerCase().endsWith('.pdf') ? (
-                        <div className="w-8 h-10 bg-red-100 rounded flex items-center justify-center">
+                      {contract.name.toLowerCase().endsWith(".pdf") ? (
+                        <div className="w-8 h-10 bg-red-100 dark:bg-red-900/30 rounded flex items-center justify-center">
                           <svg
                             className="w-4 h-4 text-red-600"
                             fill="none"
@@ -398,9 +424,9 @@ export default function CompanyCard({
                           </svg>
                         </div>
                       ) : (
-                        <div className="w-8 h-10 bg-gray-100 rounded flex items-center justify-center">
+                        <div className="w-8 h-10 bg-gray-100 dark:bg-gray-700 rounded flex items-center justify-center">
                           <svg
-                            className="w-4 h-4 text-gray-600"
+                            className="w-4 h-4 text-gray-600 dark:text-gray-300"
                             fill="none"
                             stroke="currentColor"
                             viewBox="0 0 24 24"
@@ -417,21 +443,37 @@ export default function CompanyCard({
                       )}
                     </div>
                     <div className="mt-1 text-center w-full">
-                      <p className="text-xs text-gray-900 truncate px-1" title={contract.name}>
+                      <p
+                        className="text-xs text-gray-900 dark:text-gray-200 truncate px-1"
+                        title={contract.name}
+                      >
                         {contract.name}
                       </p>
-                      <p className="text-xs text-gray-500 mt-0.5 truncate">
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 truncate">
                         {formatFileSize(contract.size)}
                       </p>
                     </div>
                     {contractProcessingState?.isProcessing ? (
-                      <LoadingSpinner size="small" color="#2563eb" className="absolute top-0 right-0" />
+                      <LoadingSpinner
+                        size="small"
+                        color="#2563eb"
+                        className="absolute top-0 right-0"
+                      />
                     ) : contractProcessingState?.isQueued ? (
-                      <div className="absolute top-0 right-0 w-3 h-3 bg-orange-500 rounded-full animate-pulse" title="Queued for processing"></div>
+                      <div
+                        className="absolute top-0 right-0 w-3 h-3 bg-orange-500 rounded-full animate-pulse"
+                        title="Queued for processing"
+                      ></div>
                     ) : contractProcessingState?.isError ? (
-                      <div className="absolute top-0 right-0 w-3 h-3 bg-red-500 rounded-full" title={`Error: ${contractProcessingState.errorMessage}`}></div>
+                      <div
+                        className="absolute top-0 right-0 w-3 h-3 bg-red-500 rounded-full"
+                        title={`Error: ${contractProcessingState.errorMessage}`}
+                      ></div>
                     ) : isSynced ? (
-                      <div className="absolute top-0 right-0 w-3 h-3 bg-green-500 rounded-full" title="Processed"></div>
+                      <div
+                        className="absolute top-0 right-0 w-3 h-3 bg-green-500 rounded-full"
+                        title="Processed"
+                      ></div>
                     ) : null}
                   </div>
 
@@ -478,7 +520,9 @@ export default function CompanyCard({
                 d="M9 13h6m-3-3v6m-9 1V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z"
               ></path>
             </svg>
-            <p className="mt-2 text-sm text-gray-500">No files in this folder</p>
+            <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+              No files in this folder
+            </p>
           </div>
         )}
 

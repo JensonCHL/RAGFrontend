@@ -431,13 +431,15 @@ function DashboardPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 p-8">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-8 transition-colors">
       <div className="max-w-4xl mx-auto">
         <header className="mb-8">
           <div className="flex justify-between items-center">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
-              <p className="text-gray-600 mt-2">
+              <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+                Dashboard
+              </h1>
+              <p className="text-gray-600 dark:text-gray-400 mt-2">
                 View processed documents and manage your ingestion workflow
               </p>
             </div>
@@ -466,9 +468,9 @@ function DashboardPage() {
 
         {/* Summary Statistics */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <div className="bg-white rounded-lg shadow p-6">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow dark:shadow-gray-900/50 p-6 transition-colors">
             <div className="flex items-center">
-              <div className="rounded-full bg-blue-100 p-3">
+              <div className="rounded-full bg-blue-100 dark:bg-blue-900/30 p-3">
                 <svg
                   className="w-6 h-6 text-blue-600"
                   fill="none"
@@ -485,17 +487,19 @@ function DashboardPage() {
                 </svg>
               </div>
               <div className="ml-4">
-                <h3 className="text-sm font-medium text-gray-500">Companies</h3>
-                <p className="text-2xl font-semibold text-gray-900">
+                <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                  Companies
+                </h3>
+                <p className="text-2xl font-semibold text-gray-900 dark:text-white">
                   {qdrantCompanies.length}
                 </p>
               </div>
             </div>
           </div>
 
-          <div className="bg-white rounded-lg shadow p-6">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow dark:shadow-gray-900/50 p-6 transition-colors">
             <div className="flex items-center">
-              <div className="rounded-full bg-green-100 p-3">
+              <div className="rounded-full bg-green-100 dark:bg-green-900/30 p-3">
                 <svg
                   className="w-6 h-6 text-green-600"
                   fill="none"
@@ -512,17 +516,19 @@ function DashboardPage() {
                 </svg>
               </div>
               <div className="ml-4">
-                <h3 className="text-sm font-medium text-gray-500">Documents</h3>
-                <p className="text-2xl font-semibold text-gray-900">
+                <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                  Documents
+                </h3>
+                <p className="text-2xl font-semibold text-gray-900 dark:text-white">
                   {summaryStats.totalDocuments}
                 </p>
               </div>
             </div>
           </div>
 
-          <div className="bg-white rounded-lg shadow p-6">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow dark:shadow-gray-900/50 p-6 transition-colors">
             <div className="flex items-center">
-              <div className="rounded-full bg-purple-100 p-3">
+              <div className="rounded-full bg-purple-100 dark:bg-purple-900/30 p-3">
                 <svg
                   className="w-6 h-6 text-purple-600"
                   fill="none"
@@ -539,19 +545,19 @@ function DashboardPage() {
                 </svg>
               </div>
               <div className="ml-4">
-                <h3 className="text-sm font-medium text-gray-500">
+                <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">
                   Total Pages
                 </h3>
-                <p className="text-2xl font-semibold text-gray-900">
+                <p className="text-2xl font-semibold text-gray-900 dark:text-white">
                   {summaryStats.totalPages}
                 </p>
               </div>
             </div>
           </div>
 
-          <div className="bg-white rounded-lg shadow p-6">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow dark:shadow-gray-900/50 p-6 transition-colors">
             <div className="flex items-center">
-              <div className="rounded-full bg-yellow-100 p-3">
+              <div className="rounded-full bg-yellow-100 dark:bg-yellow-900/30 p-3">
                 <svg
                   className="w-6 h-6 text-yellow-600"
                   fill="none"
@@ -568,10 +574,10 @@ function DashboardPage() {
                 </svg>
               </div>
               <div className="ml-4">
-                <h3 className="text-sm font-medium text-gray-500">
+                <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">
                   Total Indexes
                 </h3>
-                <p className="text-2xl font-semibold text-gray-900">
+                <p className="text-2xl font-semibold text-gray-900 dark:text-white">
                   {indexes.length}
                 </p>
               </div>
@@ -581,8 +587,8 @@ function DashboardPage() {
 
         {/* Index Information */}
         {indexes.length > 0 && (
-          <div className="bg-white rounded-lg shadow p-6 mb-8">
-            <h3 className="text-lg font-medium text-gray-900 mb-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow dark:shadow-gray-900/50 p-6 mb-8 transition-colors">
+            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
               Active Indexes
             </h3>
             <div className="flex flex-wrap gap-2">
@@ -620,7 +626,7 @@ function DashboardPage() {
               </div>
               <input
                 type="text"
-                className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                className="block w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md leading-5 bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm transition-colors"
                 placeholder="Search companies or documents..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -629,10 +635,10 @@ function DashboardPage() {
             <div className="flex space-x-2">
               <button
                 onClick={() => setIsSelecting(!isSelecting)}
-                className={`inline-flex items-center px-4 py-2 border text-sm font-medium rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 ${
+                className={`inline-flex items-center px-4 py-2 border text-sm font-medium rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors ${
                   isSelecting
-                    ? "border-blue-300 text-blue-700 bg-blue-50 hover:bg-blue-100"
-                    : "border-gray-300 text-gray-700 bg-white hover:bg-gray-50"
+                    ? "border-blue-300 text-blue-700 bg-blue-50 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-700 hover:bg-blue-100 dark:hover:bg-blue-900/50"
+                    : "border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700"
                 }`}
               >
                 <svg
@@ -655,7 +661,7 @@ function DashboardPage() {
                 <>
                   <button
                     onClick={selectAll}
-                    className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                    className="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
                   >
                     Select All
                   </button>
@@ -664,10 +670,10 @@ function DashboardPage() {
                     disabled={
                       Object.values(selectedItems).filter(Boolean).length === 0
                     }
-                    className={`inline-flex items-center px-4 py-2 border text-sm font-medium rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 ${
+                    className={`inline-flex items-center px-4 py-2 border text-sm font-medium rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors ${
                       Object.values(selectedItems).filter(Boolean).length === 0
-                        ? "border-gray-300 text-gray-400 bg-gray-100 cursor-not-allowed"
-                        : "border-red-300 text-red-700 bg-red-50 hover:bg-red-100"
+                        ? "border-gray-300 dark:border-gray-600 text-gray-400 bg-gray-100 dark:bg-gray-800 cursor-not-allowed"
+                        : "border-red-300 dark:border-red-700 text-red-700 dark:text-red-400 bg-red-50 dark:bg-red-900/30 hover:bg-red-100 dark:hover:bg-red-900/50"
                     }`}
                   >
                     <svg
@@ -717,22 +723,22 @@ function DashboardPage() {
 
         {/* Main Content - Processed Documents from Qdrant */}
         <div className="mb-8">
-          <h2 className="text-2xl font-bold text-gray-800 mb-6">
+          <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-6 transition-colors">
             Processed Documents
           </h2>
 
           {loading ? (
-            <div className="bg-white rounded-lg shadow p-8 flex justify-center items-center">
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow dark:shadow-gray-900/50 p-8 flex justify-center items-center transition-colors">
               <div className="text-center">
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-                <p className="mt-4 text-gray-600">
+                <p className="mt-4 text-gray-600 dark:text-gray-400">
                   Loading processed documents...
                 </p>
               </div>
             </div>
           ) : error ? (
-            <div className="bg-white rounded-lg shadow p-6">
-              <div className="bg-red-50 border border-red-200 rounded-md p-4">
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow dark:shadow-gray-900/50 p-6 transition-colors">
+              <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md p-4 transition-colors">
                 <div className="flex">
                   <div className="flex-shrink-0">
                     <svg
@@ -749,7 +755,7 @@ function DashboardPage() {
                     </svg>
                   </div>
                   <div className="ml-3">
-                    <h3 className="text-sm font-medium text-red-800">
+                    <h3 className="text-sm font-medium text-red-800 dark:text-red-400">
                       Error Loading Data
                     </h3>
                     <div className="mt-2 text-sm text-red-700">
@@ -760,7 +766,7 @@ function DashboardPage() {
               </div>
             </div>
           ) : filteredCompanies.length === 0 ? (
-            <div className="bg-white rounded-lg shadow p-8 text-center">
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow dark:shadow-gray-900/50 p-8 text-center transition-colors">
               <svg
                 className="mx-auto h-16 w-16 text-gray-400"
                 fill="none"
@@ -774,12 +780,12 @@ function DashboardPage() {
                   d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
                 />
               </svg>
-              <h3 className="mt-4 text-lg font-medium text-gray-900">
+              <h3 className="mt-4 text-lg font-medium text-gray-900 dark:text-white">
                 {searchTerm
                   ? "No matching documents found"
                   : "No processed documents found"}
               </h3>
-              <p className="mt-2 text-gray-500">
+              <p className="mt-2 text-gray-500 dark:text-gray-400">
                 {searchTerm
                   ? `No companies or documents match your search for "${searchTerm}". Try a different search term.`
                   : "Documents will appear here after they have been processed by the ingestion pipeline."}
@@ -800,7 +806,7 @@ function DashboardPage() {
               {filteredCompanies.map((company) => (
                 <div
                   key={company.name}
-                  className="bg-white rounded-lg shadow overflow-hidden"
+                  className="bg-white dark:bg-gray-800 rounded-lg shadow dark:shadow-gray-900/50 overflow-hidden transition-colors"
                 >
                   <div className="p-6">
                     <div className="flex justify-between items-center">
@@ -835,7 +841,7 @@ function DashboardPage() {
                               d="M9 5l7 7-7 7"
                             ></path>
                           </svg>
-                          <h3 className="text-lg font-semibold text-gray-900">
+                          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
                             {company.name}
                           </h3>
                         </div>
@@ -854,11 +860,11 @@ function DashboardPage() {
                               deleteCompany(company.name);
                             }}
                             disabled={deleting.company === company.name}
-                            className={`p-2 rounded-full ${
+                            className={`p-2 rounded-full transition-colors duration-150 ${
                               deleting.company === company.name
-                                ? "bg-gray-200"
-                                : "bg-red-100 hover:bg-red-200"
-                            } text-red-600 transition-colors duration-150`}
+                                ? "bg-gray-200 dark:bg-gray-700"
+                                : "bg-red-100 dark:bg-red-900/30 hover:bg-red-200 dark:hover:bg-red-900/50"
+                            } text-red-600 dark:text-red-400`}
                             title="Delete company and all its documents"
                           >
                             {deleting.company === company.name ? (
@@ -906,7 +912,7 @@ function DashboardPage() {
                             ([documentName, metadata]) => (
                               <li
                                 key={documentName}
-                                className="flex items-start py-3 border-b border-gray-100 last:border-0"
+                                className="flex items-start py-3 border-b border-gray-100 dark:border-gray-700 last:border-0 transition-colors"
                               >
                                 {isSelecting && (
                                   <input
@@ -941,10 +947,10 @@ function DashboardPage() {
                                   </svg>
                                 </div>
                                 <div className="ml-3 flex-grow">
-                                  <p className="text-sm font-medium text-gray-900 break-words">
+                                  <p className="text-sm font-medium text-gray-900 dark:text-white break-words">
                                     {documentName}
                                   </p>
-                                  <div className="mt-1 text-xs text-gray-500 space-y-1">
+                                  <div className="mt-1 text-xs text-gray-500 dark:text-gray-400 space-y-1">
                                     <div className="flex items-center">
                                       <span className="inline-block w-20">
                                         Doc ID:
@@ -978,12 +984,12 @@ function DashboardPage() {
                                       deleting.document === documentName &&
                                       deleting.company === company.name
                                     }
-                                    className={`ml-2 p-1.5 rounded-full ${
+                                    className={`ml-2 p-1.5 rounded-full transition-colors duration-150 ${
                                       deleting.document === documentName &&
                                       deleting.company === company.name
-                                        ? "bg-gray-200"
-                                        : "bg-red-100 hover:bg-red-200"
-                                    } text-red-600 transition-colors duration-150`}
+                                        ? "bg-gray-200 dark:bg-gray-700"
+                                        : "bg-red-100 dark:bg-red-900/30 hover:bg-red-200 dark:hover:bg-red-900/50"
+                                    } text-red-600 dark:text-red-400`}
                                     title="Delete document"
                                   >
                                     {deleting.document === documentName &&
@@ -1026,7 +1032,7 @@ function DashboardPage() {
                         </ul>
                       ) : (
                         <div className="mt-4 text-center py-4">
-                          <p className="text-sm text-gray-500">
+                          <p className="text-sm text-gray-500 dark:text-gray-400">
                             No documents match your search
                           </p>
                         </div>

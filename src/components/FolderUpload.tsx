@@ -1,6 +1,6 @@
-'use client';
+"use client";
 
-import { useState, useRef } from 'react';
+import { useState, useRef } from "react";
 
 interface FolderUploadProps {
   onFolderUpload: (folderName: string, files: File[]) => void;
@@ -37,7 +37,9 @@ export default function FolderUpload({ onFolderUpload }: FolderUploadProps) {
     if (e.dataTransfer.items && e.dataTransfer.items.length > 0) {
       // Handle folder drops using webkitGetAsEntry
       const items = Array.from(e.dataTransfer.items);
-      const entries = items.map(item => item.webkitGetAsEntry()).filter(entry => entry !== null);
+      const entries = items
+        .map((item) => item.webkitGetAsEntry())
+        .filter((entry) => entry !== null);
 
       if (entries.length > 0) {
         await processEntries(entries);
@@ -58,11 +60,13 @@ export default function FolderUpload({ onFolderUpload }: FolderUploadProps) {
 
   const processEntries = async (entries: any[]) => {
     // Filter out file entries and only process folder entries
-    const folderEntries = entries.filter(entry => entry.isDirectory);
-    const fileEntries = entries.filter(entry => entry.isFile);
+    const folderEntries = entries.filter((entry) => entry.isDirectory);
+    const fileEntries = entries.filter((entry) => entry.isFile);
 
     if (folderEntries.length === 0 && fileEntries.length > 0) {
-      setError('Please drop folders, not individual files. Create folders and put your files inside them.');
+      setError(
+        "Please drop folders, not individual files. Create folders and put your files inside them."
+      );
       return;
     }
 
@@ -72,17 +76,17 @@ export default function FolderUpload({ onFolderUpload }: FolderUploadProps) {
     // Process each folder
     let successCount = 0;
     let failCount = 0;
-    
+
     for (const folderEntry of folderEntries) {
       try {
         await processFolderEntry(folderEntry);
         successCount++;
       } catch (err) {
-        console.error('Error processing folder:', folderEntry.name, err);
+        console.error("Error processing folder:", folderEntry.name, err);
         failCount++;
       }
     }
-    
+
     // Show summary if there were failures
     if (failCount > 0) {
       const message = `Processed ${successCount} folders successfully. ${failCount} folders had issues.`;
@@ -93,12 +97,18 @@ export default function FolderUpload({ onFolderUpload }: FolderUploadProps) {
   const processFolderEntry = async (folderEntry: any) => {
     try {
       // Recursive function to get all PDF files from nested folders
-      const getAllPdfFiles = async (entry: any, files: File[] = []): Promise<File[]> => {
+      const getAllPdfFiles = async (
+        entry: any,
+        files: File[] = []
+      ): Promise<File[]> => {
         if (entry.isFile) {
           return new Promise((resolve) => {
             entry.file((file: File) => {
               // Only collect PDF files
-              if (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) {
+              if (
+                file.type === "application/pdf" ||
+                file.name.toLowerCase().endsWith(".pdf")
+              ) {
                 files.push(file);
               }
               resolve(files);
@@ -107,7 +117,7 @@ export default function FolderUpload({ onFolderUpload }: FolderUploadProps) {
         } else if (entry.isDirectory) {
           // Recursively process directory contents
           const dirReader = entry.createReader();
-          
+
           return new Promise((resolve) => {
             const readAllEntries = () => {
               dirReader.readEntries(async (entries: any[]) => {
@@ -134,7 +144,9 @@ export default function FolderUpload({ onFolderUpload }: FolderUploadProps) {
       await getAllPdfFiles(folderEntry, allPdfFiles);
 
       if (allPdfFiles.length === 0) {
-        console.warn(`No PDF files found in folder "${folderEntry.name}" and its subfolders`);
+        console.warn(
+          `No PDF files found in folder "${folderEntry.name}" and its subfolders`
+        );
         // Continue processing other folders instead of stopping
         return;
       }
@@ -147,14 +159,16 @@ export default function FolderUpload({ onFolderUpload }: FolderUploadProps) {
       // Use directory name as company name (convert to uppercase)
       onFolderUpload(folderEntry.name.toUpperCase(), allPdfFiles);
     } catch (err) {
-      console.error('Error processing folder:', folderEntry.name, err);
+      console.error("Error processing folder:", folderEntry.name, err);
       // Log error but continue processing other folders
       // Don't set global error that stops everything
     }
   };
 
   const processFiles = async (files: File[]) => {
-    setError('Please drop folders, not individual files. Create folders and put your files inside them.');
+    setError(
+      "Please drop folders, not individual files. Create folders and put your files inside them."
+    );
   };
 
   const handleClick = () => {
@@ -163,21 +177,23 @@ export default function FolderUpload({ onFolderUpload }: FolderUploadProps) {
     }
   };
 
-  const handleFileInputChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileInputChange = async (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
     if (e.target.files && e.target.files.length > 0) {
       const files = Array.from(e.target.files);
 
       if (files.length === 0) {
-        setError('No files selected');
+        setError("No files selected");
         return;
       }
 
       // Group files by their parent folder
       const folders: Record<string, File[]> = {};
 
-      files.forEach(file => {
+      files.forEach((file) => {
         // Get the parent folder name from webkitRelativePath
-        const pathParts = file.webkitRelativePath.split('/');
+        const pathParts = file.webkitRelativePath.split("/");
         if (pathParts.length >= 2) {
           const folderName = pathParts[0];
           if (!folders[folderName]) {
@@ -190,7 +206,9 @@ export default function FolderUpload({ onFolderUpload }: FolderUploadProps) {
       // Validate each folder
       for (const [folderName, folderFiles] of Object.entries(folders)) {
         if (folderFiles.length > 20) {
-          setError(`Too many files (${folderFiles.length}) in folder "${folderName}". Please select a maximum of 20 files per folder.`);
+          setError(
+            `Too many files (${folderFiles.length}) in folder "${folderName}". Please select a maximum of 20 files per folder.`
+          );
           return;
         }
       }
@@ -200,23 +218,25 @@ export default function FolderUpload({ onFolderUpload }: FolderUploadProps) {
         onFolderUpload(folderName.toUpperCase(), folderFiles);
       }
 
-      e.target.value = ''; // Reset input
+      e.target.value = ""; // Reset input
     }
   };
 
   return (
-    <div className="bg-white rounded-lg shadow">
+    <div className="bg-white dark:bg-gray-800 rounded-lg shadow transition-colors duration-300">
       <div className="p-4">
-        <h2 className="text-md font-semibold text-gray-800 mb-2">Upload Company Folders</h2>
-        <p className="text-gray-600 text-xs mb-3">
+        <h2 className="text-md font-semibold text-gray-800 dark:text-white mb-2">
+          Upload Company Folders
+        </h2>
+        <p className="text-gray-600 dark:text-gray-400 text-xs mb-3">
           Drag and drop folders containing files, or click to select folders
         </p>
 
         <div
           className={`border border-dashed rounded-md p-4 text-center cursor-pointer transition-all duration-150 ${
             isDragging
-              ? 'border-blue-500 bg-blue-50'
-              : 'border-gray-300 hover:border-gray-400'
+              ? "border-blue-500 bg-blue-50 dark:bg-blue-900/20"
+              : "border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500"
           }`}
           onDragEnter={handleDragEnter}
           onDragOver={handleDragOver}
@@ -239,10 +259,11 @@ export default function FolderUpload({ onFolderUpload }: FolderUploadProps) {
                 d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
               ></path>
             </svg>
-            <p className="text-gray-600 text-sm">
-              <span className="font-medium text-blue-600">Click to upload</span> or drag and drop
+            <p className="text-gray-600 dark:text-gray-300 text-sm">
+              <span className="font-medium text-blue-600">Click to upload</span>{" "}
+              or drag and drop
             </p>
-            <p className="text-gray-500 text-xs mt-1">
+            <p className="text-gray-500 dark:text-gray-400 text-xs mt-1">
               Folders with files (nested folders allowed)
             </p>
           </div>
@@ -253,15 +274,13 @@ export default function FolderUpload({ onFolderUpload }: FolderUploadProps) {
             className="hidden"
             multiple
             onChange={handleFileInputChange}
-            {...({webkitdirectory: true} as any)}
+            {...({ webkitdirectory: true } as any)}
           />
         </div>
 
-        {error && (
-          <div className="mt-2 text-red-500 text-xs">{error}</div>
-        )}
+        {error && <div className="mt-2 text-red-500 text-xs">{error}</div>}
 
-        <div className="mt-3 text-xs text-gray-500">
+        <div className="mt-3 text-xs text-gray-500 dark:text-gray-400">
           <p>Requirements:</p>
           <ul className="list-disc list-inside mt-1 space-y-1">
             <li>Folders with PDF files</li>

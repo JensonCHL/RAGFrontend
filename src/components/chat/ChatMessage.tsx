@@ -68,14 +68,14 @@ export default function ChatMessage({
                 <textarea
                   value={editedContent}
                   onChange={(e) => setEditedContent(e.target.value)}
-                  className="w-full bg-[#2F2F3F] !text-white rounded-2xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                  className="w-full bg-gray-100 dark:bg-[#2F2F3F] text-gray-900 dark:!text-white rounded-2xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
                   rows={3}
                   autoFocus
                 />
                 <div className="flex gap-2 justify-end">
                   <button
                     onClick={handleCancelEdit}
-                    className="px-4 py-1.5 text-sm text-gray-300 hover:text-white hover:bg-gray-700 rounded-lg transition-colors"
+                    className="px-4 py-1.5 text-sm text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition-colors"
                   >
                     Cancel
                   </button>
@@ -89,7 +89,7 @@ export default function ChatMessage({
               </div>
             ) : (
               <div className="relative">
-                <div className="bg-[#2F2F3F] text-white rounded-2xl px-5 py-3.5">
+                <div className="bg-blue-600 text-white rounded-2xl px-5 py-3.5 shadow-md">
                   <p className="whitespace-pre-wrap text-[15px] leading-relaxed">
                     {message.content}
                   </p>
@@ -99,7 +99,7 @@ export default function ChatMessage({
                 <div className="absolute -bottom-8 right-0 flex items-center gap-1 opacity-0 group-hover/message:opacity-100 transition-opacity duration-200">
                   <button
                     onClick={handleEdit}
-                    className="p-1.5 text-gray-400 hover:text-white hover:bg-gray-800 rounded-lg transition-colors"
+                    className="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
                     title="Edit prompt"
                   >
                     <svg
@@ -118,7 +118,7 @@ export default function ChatMessage({
                   </button>
                   <button
                     onClick={handleCopy}
-                    className="p-1.5 text-gray-400 hover:text-white hover:bg-gray-800 rounded-lg transition-colors"
+                    className="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
                     title="Copy text"
                   >
                     <svg
@@ -149,7 +149,7 @@ export default function ChatMessage({
               isStreaming ? "loading-border" : ""
             }`}
           >
-            <div className="w-full h-full rounded-full overflow-hidden">
+            <div className="w-20 h-20 rounded-full overflow-hidden">
               <img
                 src="/Cloudeka.png"
                 alt="Cloudeka"
@@ -168,29 +168,29 @@ export default function ChatMessage({
                   table: ({ node, ...props }) => (
                     <div className="overflow-x-auto my-4">
                       <table
-                        className="min-w-full divide-y divide-gray-700 border border-gray-700 rounded-lg"
+                        className="min-w-full divide-y divide-gray-200 dark:divide-gray-700 border border-gray-200 dark:border-gray-700 rounded-lg"
                         {...props}
                       />
                     </div>
                   ),
                   thead: ({ node, ...props }) => (
-                    <thead className="bg-gray-800" {...props} />
+                    <thead className="bg-gray-50 dark:bg-gray-800" {...props} />
                   ),
                   tbody: ({ node, ...props }) => (
                     <tbody
-                      className="divide-y divide-gray-700 bg-gray-800/50"
+                      className="divide-y divide-gray-200 dark:divide-gray-700 bg-white dark:bg-gray-800/50"
                       {...props}
                     />
                   ),
                   th: ({ node, ...props }) => (
                     <th
-                      className="px-4 py-2.5 text-left text-xs font-medium text-gray-300 uppercase tracking-wider"
+                      className="px-4 py-2.5 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider"
                       {...props}
                     />
                   ),
                   td: ({ node, ...props }) => (
                     <td
-                      className="px-4 py-2.5 text-sm text-gray-200"
+                      className="px-4 py-2.5 text-sm text-gray-700 dark:text-gray-200"
                       {...props}
                     />
                   ),
@@ -198,14 +198,14 @@ export default function ChatMessage({
                     const match = /language-(\w+)/.exec(className || "");
                     return match ? (
                       <code
-                        className={`${className} block bg-[#1E1E1E] p-4 rounded-lg overflow-x-auto text-gray-100 text-sm`}
+                        className={`${className} block bg-gray-100 dark:bg-[#1E1E1E] p-4 rounded-lg overflow-x-auto text-gray-800 dark:text-gray-100 text-sm`}
                         {...props}
                       >
                         {children}
                       </code>
                     ) : (
                       <code
-                        className="bg-gray-800 px-1.5 py-0.5 rounded text-sm text-blue-300"
+                        className="bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 rounded text-sm text-blue-600 dark:text-blue-300"
                         {...props}
                       >
                         {children}
@@ -214,43 +214,43 @@ export default function ChatMessage({
                   },
                   p: ({ node, ...props }) => (
                     <p
-                      className="text-gray-200 mb-3 text-[15px] leading-relaxed"
+                      className="text-gray-800 dark:text-gray-200 mb-3 text-[15px] leading-relaxed"
                       {...props}
                     />
                   ),
                   a: ({ node, ...props }) => (
                     <a
-                      className="text-blue-400 hover:text-blue-300 underline"
+                      className="text-blue-600 dark:text-blue-400 hover:text-blue-500 dark:hover:text-blue-300 underline"
                       {...props}
                     />
                   ),
                   ul: ({ node, ...props }) => (
                     <ul
-                      className="list-disc pl-5 text-gray-200 space-y-1"
+                      className="list-disc pl-5 text-gray-800 dark:text-gray-200 space-y-1"
                       {...props}
                     />
                   ),
                   ol: ({ node, ...props }) => (
                     <ol
-                      className="list-decimal pl-5 text-gray-200 space-y-1"
+                      className="list-decimal pl-5 text-gray-800 dark:text-gray-200 space-y-1"
                       {...props}
                     />
                   ),
                   h1: ({ node, ...props }) => (
                     <h1
-                      className="text-2xl font-semibold text-gray-100 mt-4 mb-2"
+                      className="text-2xl font-semibold text-gray-900 dark:text-gray-100 mt-4 mb-2"
                       {...props}
                     />
                   ),
                   h2: ({ node, ...props }) => (
                     <h2
-                      className="text-xl font-semibold text-gray-100 mt-3 mb-2"
+                      className="text-xl font-semibold text-gray-900 dark:text-gray-100 mt-3 mb-2"
                       {...props}
                     />
                   ),
                   h3: ({ node, ...props }) => (
                     <h3
-                      className="text-lg font-semibold text-gray-100 mt-3 mb-2"
+                      className="text-lg font-semibold text-gray-900 dark:text-gray-100 mt-3 mb-2"
                       {...props}
                     />
                   ),
@@ -268,7 +268,7 @@ export default function ChatMessage({
                 }`}
               >
                 <button
-                  className="p-2 text-gray-400 hover:text-gray-200 hover:bg-gray-800 rounded-lg transition-colors"
+                  className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
                   title="Good response"
                 >
                   <svg
@@ -286,7 +286,7 @@ export default function ChatMessage({
                   </svg>
                 </button>
                 <button
-                  className="p-2 text-gray-400 hover:text-gray-200 hover:bg-gray-800 rounded-lg transition-colors"
+                  className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
                   title="Bad response"
                 >
                   <svg
@@ -305,7 +305,7 @@ export default function ChatMessage({
                 </button>
                 <button
                   onClick={handleCopy}
-                  className="p-2 text-gray-400 hover:text-gray-200 hover:bg-gray-800 rounded-lg transition-colors"
+                  className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
                   title="Copy"
                 >
                   <svg
@@ -323,7 +323,7 @@ export default function ChatMessage({
                   </svg>
                 </button>
                 <button
-                  className="p-2 text-gray-400 hover:text-gray-200 hover:bg-gray-800 rounded-lg transition-colors"
+                  className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
                   title="Share"
                 >
                   <svg
@@ -341,7 +341,7 @@ export default function ChatMessage({
                   </svg>
                 </button>
                 <button
-                  className="p-2 text-gray-400 hover:text-gray-200 hover:bg-gray-800 rounded-lg transition-colors"
+                  className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
                   title="More"
                 >
                   <svg

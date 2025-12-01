@@ -3,6 +3,7 @@
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { Conversation } from "@/types/chat";
+import ThemeToggle from "./ThemeToggle";
 
 interface SidebarProps {
   // Chat-specific props (optional)
@@ -63,22 +64,45 @@ export default function Sidebar({
     <div
       key={conv.id}
       className={`group relative mx-2 mb-1 rounded-lg cursor-pointer transition-all ${
-        conv.id === activeConversationId ? "bg-gray-800" : "hover:bg-gray-800"
+        conv.id === activeConversationId
+          ? "bg-gray-800 dark:bg-gray-700"
+          : "hover:bg-gray-800 dark:hover:bg-gray-700"
       }`}
       onClick={() => onSelectConversation?.(conv.id)}
     >
       <div className="flex items-center gap-3 px-3 py-3">
-        <svg
-          className="w-4 h-4 flex-shrink-0 text-gray-400"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
+        <svg className="w-5 h-5 flex-shrink-0" viewBox="0 0 24 24" fill="none">
+          <rect
+            x="4"
+            y="4"
+            width="6"
+            height="6"
+            rx="1"
+            className="fill-blue-500"
+          />
+          <rect
+            x="14"
+            y="4"
+            width="6"
+            height="6"
+            rx="1"
+            className="fill-blue-400"
+          />
+          <rect
+            x="4"
+            y="14"
+            width="6"
+            height="6"
+            rx="1"
+            className="fill-blue-600"
+          />
+          <rect
+            x="14"
+            y="14"
+            width="6"
+            height="6"
+            rx="1"
+            className="fill-blue-300"
           />
         </svg>
         <p className="text-sm truncate flex-1">{conv.title}</p>
@@ -114,15 +138,16 @@ export default function Sidebar({
     <div
       className={`${
         isOpen ? "w-80" : "w-0"
-      } bg-gray-900 text-white transition-all duration-300 overflow-hidden flex flex-col relative border-r border-gray-700 flex-shrink-0`}
+      } bg-gray-900 dark:bg-gray-900 text-white transition-all duration-300 overflow-hidden flex flex-col relative border-r border-gray-700 dark:border-gray-700 flex-shrink-0`}
     >
-      {/* Logo */}
-      <div className="p-4">
+      {/* Logo and Theme Toggle */}
+      <div className="p-4 flex items-center justify-between">
         <img
           src="/cloudeka-logo1.png"
           alt="Cloudeka Logo"
           className="h-18 w-auto"
         />
+        <ThemeToggle />
       </div>
 
       {/* Navigation Menu */}
@@ -227,9 +252,22 @@ export default function Sidebar({
           <div className="p-4 border-b border-gray-700">
             <button
               onClick={onNewConversation}
-              className="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg font-medium transition-colors duration-200"
+              className="w-full px-4 py-2.5 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 text-white rounded-lg font-medium transition-all duration-200 shadow-lg shadow-blue-900/20 flex items-center justify-center gap-2"
             >
-              + New Chat
+              <svg
+                className="w-5 h-5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 4v16m8-8H4"
+                />
+              </svg>
+              New Chat
             </button>
           </div>
 
@@ -239,7 +277,7 @@ export default function Sidebar({
               placeholder="Search conversations..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-4 py-2.5 bg-[#1a1b26] border border-gray-800 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50 placeholder-gray-500 text-gray-300"
             />
           </div>
 
