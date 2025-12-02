@@ -166,7 +166,11 @@ export default function ChatMessage({
                 rehypePlugins={[rehypeKatex]}
                 components={{
                   table: ({ node, ...props }) => (
-                    <div className="overflow-x-auto my-4">
+                    <div
+                      className={`overflow-x-auto my-4 ${
+                        isStreaming ? "animate-fade-in" : ""
+                      }`}
+                    >
                       <table
                         className="min-w-full divide-y divide-gray-200 dark:divide-gray-700 border border-gray-200 dark:border-gray-700 rounded-lg"
                         {...props}
@@ -198,7 +202,9 @@ export default function ChatMessage({
                     const match = /language-(\w+)/.exec(className || "");
                     return match ? (
                       <code
-                        className={`${className} block bg-gray-100 dark:bg-[#1E1E1E] p-4 rounded-lg overflow-x-auto text-gray-800 dark:text-gray-100 text-sm`}
+                        className={`${className} block bg-gray-100 dark:bg-[#1E1E1E] p-4 rounded-lg overflow-x-auto text-gray-800 dark:text-gray-100 text-sm ${
+                          isStreaming ? "animate-fade-in" : ""
+                        }`}
                         {...props}
                       >
                         {children}
@@ -214,7 +220,9 @@ export default function ChatMessage({
                   },
                   p: ({ node, ...props }) => (
                     <p
-                      className="text-gray-800 dark:text-gray-200 mb-3 text-[15px] leading-relaxed"
+                      className={`text-gray-800 dark:text-gray-200 mb-3 text-[15px] leading-relaxed ${
+                        isStreaming ? "animate-fade-in" : ""
+                      }`}
                       {...props}
                     />
                   ),
@@ -226,31 +234,41 @@ export default function ChatMessage({
                   ),
                   ul: ({ node, ...props }) => (
                     <ul
-                      className="list-disc pl-5 text-gray-800 dark:text-gray-200 space-y-1"
+                      className={`list-disc pl-5 text-gray-800 dark:text-gray-200 space-y-1 ${
+                        isStreaming ? "animate-fade-in" : ""
+                      }`}
                       {...props}
                     />
                   ),
                   ol: ({ node, ...props }) => (
                     <ol
-                      className="list-decimal pl-5 text-gray-800 dark:text-gray-200 space-y-1"
+                      className={`list-decimal pl-5 text-gray-800 dark:text-gray-200 space-y-1 ${
+                        isStreaming ? "animate-fade-in" : ""
+                      }`}
                       {...props}
                     />
                   ),
                   h1: ({ node, ...props }) => (
                     <h1
-                      className="text-2xl font-semibold text-gray-900 dark:text-gray-100 mt-4 mb-2"
+                      className={`text-2xl font-semibold text-gray-900 dark:text-gray-100 mt-4 mb-2 ${
+                        isStreaming ? "animate-fade-in" : ""
+                      }`}
                       {...props}
                     />
                   ),
                   h2: ({ node, ...props }) => (
                     <h2
-                      className="text-xl font-semibold text-gray-900 dark:text-gray-100 mt-3 mb-2"
+                      className={`text-xl font-semibold text-gray-900 dark:text-gray-100 mt-3 mb-2 ${
+                        isStreaming ? "animate-fade-in" : ""
+                      }`}
                       {...props}
                     />
                   ),
                   h3: ({ node, ...props }) => (
                     <h3
-                      className="text-lg font-semibold text-gray-900 dark:text-gray-100 mt-3 mb-2"
+                      className={`text-lg font-semibold text-gray-900 dark:text-gray-100 mt-3 mb-2 ${
+                        isStreaming ? "animate-fade-in" : ""
+                      }`}
                       {...props}
                     />
                   ),

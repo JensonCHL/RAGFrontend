@@ -151,3 +151,55 @@ textarea.bg-gray-700::-webkit-scrollbar-thumb:hover {
   background-size: 200% auto;
   animation: shimmer 8s linear infinite;
 }
+
+/* Cloudeka brand gradient animation (blue to red) */
+@keyframes cloudeka-gradient {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+.animate-cloudeka-gradient {
+  background: linear-gradient(
+    90deg,
+    #0d47a1,
+    #1976d2,
+    #2196f3,
+    #42a5f5,
+    #ef5350,
+    #f44336,
+    #e53935,
+    #42a5f5,
+    #2196f3,
+    #1976d2,
+    #0d47a1
+  );
+  background-size: 400% 100%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  color: transparent;
+  animation: cloudeka-gradient 8s ease-in-out infinite;
+  display: inline-block;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.5s ease-out forwards;
+}

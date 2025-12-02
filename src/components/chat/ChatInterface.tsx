@@ -41,7 +41,7 @@ export default function ChatInterface({
           <div className="text-center space-y-2">
             <h1 className="text-5xl font-medium bg-gradient-to-r from-[#3F81F7] to-[#2563eb] bg-clip-text text-transparent">
               Hello, User
-            </h1> 
+            </h1>
             <p className="text-xl text-gray-500 dark:text-gray-400">
               How can I help you today?
             </p>
@@ -71,7 +71,7 @@ export default function ChatInterface({
           <div className="w-full max-w-4xl space-y-12">
             {/* Greeting */}
             <div className="text-center space-y-2">
-              <h1 className="text-5xl font-medium bg-gradient-to-r from-[#3F81F7] via-[#EF4444] to-[#3F81F7] bg-clip-text text-transparent animate-shimmer">
+              <h1 className="text-5xl font-medium animate-cloudeka-gradient">
                 Hello, User
               </h1>
               <p className="text-xl text-gray-500 dark:text-gray-400">

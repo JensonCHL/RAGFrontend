@@ -123,9 +123,14 @@ function ChatPage() {
 
       await handleSSEStream(response, botMessageId, conversationId);
 
+      // Update title if this is the first message
       const conv = conversations.find((c) => c.id === conversationId);
-      if (conv && conv.messages.length === 1) {
-        updateConversationTitle(conversationId, content.slice(0, 50) + "...");
+      // Check if it's a new conversation (either empty messages or just the 2 we added)
+      const isNewConversation = !conv || conv.messages.length <= 2;
+
+      if (isNewConversation) {
+        const newTitle = generateTitle(content);
+        updateConversationTitle(conversationId, newTitle);
       }
     } catch (error) {
       if (error instanceof Error && error.name === "AbortError") {
@@ -144,6 +149,18 @@ function ChatPage() {
       setStreamingMessageId(null);
       abortControllerRef.current = null;
     }
+  };
+
+  const generateTitle = (content: string): string => {
+    // Get first sentence (split by . ? ! or newline)
+    const firstSentence = content.split(/[.?!]|\n/)[0].trim();
+
+    // Truncate if too long (e.g. 40 chars)
+    if (firstSentence.length > 40) {
+      return firstSentence.substring(0, 40) + "..";
+    }
+
+    return firstSentence;
   };
 
   const handleSSEStream = async (

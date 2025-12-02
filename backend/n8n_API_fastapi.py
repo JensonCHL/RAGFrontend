@@ -121,6 +121,64 @@ def notify_processing_update(data):
             processing_listeners.difference_update(disconnected)
 
 
+# Global indexing state management
+from concurrent.futures import ThreadPoolExecutor
+import time
+
+MAX_CONCURRENT_INDEXING_JOBS = 2
+indexing_executor = ThreadPoolExecutor(
+    max_workers=MAX_CONCURRENT_INDEXING_JOBS, thread_name_prefix="IndexingWorker"
+)
+indexing_jobs = {}  # job_id -> job_state
+indexing_jobs_lock = threading.RLock()
+active_indexing_jobs = set()  # Set of active job IDs
+
+
+def generate_job_id():
+    """Generate a unique job ID"""
+    return str(uuid.uuid4())
+
+
+def get_indexing_queue_status():
+    """Get current status of indexing queue"""
+    with indexing_jobs_lock:
+        active_count = len(active_indexing_jobs)
+        jobs_list = []
+
+        for job_id in active_indexing_jobs:
+            if job_id in indexing_jobs:
+                job = indexing_jobs[job_id]
+                jobs_list.append(
+                    {
+                        "job_id": job_id,
+                        "index_name": job.get("index_name"),
+                        "status": job.get("status"),
+                        "total_documents": job.get("total_documents", 0),
+                        "processed_documents": job.get("processed_documents", 0),
+                        "queued_documents": job.get("queued_documents", 0),
+                        "start_time": job.get("start_time"),
+                    }
+                )
+
+        return {
+            "success": True,
+            "active_jobs": active_count,
+            "max_jobs": MAX_CONCURRENT_INDEXING_JOBS,
+            "available_slots": MAX_CONCURRENT_INDEXING_JOBS - active_count,
+            "jobs": jobs_list,
+        }
+
+
+def broadcast_indexing_update(job_id):
+    """Broadcast indexing job update via SSE"""
+    with indexing_jobs_lock:
+        if job_id in indexing_jobs:
+            job_data = indexing_jobs[job_id].copy()
+            notify_processing_update(
+                {"type": "indexing_update", "job_id": job_id, "data": job_data}
+            )
+
+
 # --- API Key Authentication Dependency ---
 async def verify_api_key(authorization: Optional[str] = Header(None)):
     """Dependency to verify API key for protected endpoints"""
@@ -147,6 +205,7 @@ async def create_index_endpoint(
     """
     API endpoint to start a full manual indexing job, protected by an API key.
     Expects 'Authorization: Bearer <YOUR_API_KEY>' in the header.
+    Supports up to 2 concurrent indexing jobs.
     """
 
     if not index_name:
@@ -155,6 +214,19 @@ async def create_index_endpoint(
     # Convert index name to uppercase
     original_index_name = index_name
     index_name = index_name.upper()
+
+    # Check if max concurrent jobs reached
+    with indexing_jobs_lock:
+        if len(active_indexing_jobs) >= MAX_CONCURRENT_INDEXING_JOBS:
+            return JSONResponse(
+                content={
+                    "success": False,
+                    "error": "Indexing capacity full. Please wait for current indexing to complete.",
+                    "active_jobs": len(active_indexing_jobs),
+                    "max_jobs": MAX_CONCURRENT_INDEXING_JOBS,
+                },
+                status_code=503,
+            )
 
     # Check if this index name already exists in the database
     conn = get_db_connection()
@@ -172,7 +244,36 @@ async def create_index_endpoint(
         finally:
             conn.close()
 
-    def job_orchestrator():
+    # Generate unique job ID
+    job_id = generate_job_id()
+
+    # Initialize job state
+    with indexing_jobs_lock:
+        indexing_jobs[job_id] = {
+            "job_id": job_id,
+            "index_name": index_name,
+            "status": "starting",
+            "total_documents": 0,
+            "processed_documents": 0,
+            "queued_documents": 0,
+            "documents": {},
+            "start_time": time.time(),
+        }
+        active_indexing_jobs.add(job_id)
+
+    def job_orchestrator_wrapper():
+        """Wrapper to run job_orchestrator with job tracking"""
+        try:
+            job_orchestrator(job_id, index_name)
+        finally:
+            # Clean up job from active set when done
+            with indexing_jobs_lock:
+                active_indexing_jobs.discard(job_id)
+                if job_id in indexing_jobs:
+                    indexing_jobs[job_id]["status"] = "completed"
+            broadcast_indexing_update(job_id)
+
+    def job_orchestrator(job_id, index_name):
         """Discovers companies and launches a worker thread for each."""
         # Define the central output file
         output_file_path = os.path.join(
@@ -187,8 +288,16 @@ async def create_index_endpoint(
 
         def status_callback(message):
             # Add a timestamp to the message for clearer logging on the server
-            print(f"[INDEXING_STATUS] {message}")
-            notify_processing_update({"type": "indexing_status", "message": message})
+            print(f"[INDEXING_STATUS] [{job_id}] {message}")
+            notify_processing_update(
+                {"type": "indexing_status", "job_id": job_id, "message": message}
+            )
+
+        # Update job status
+        with indexing_jobs_lock:
+            if job_id in indexing_jobs:
+                indexing_jobs[job_id]["status"] = "processing"
+        broadcast_indexing_update(job_id)
 
         status_callback(
             f"Job started for index: '{index_name}'. Discovering companies..."
@@ -198,6 +307,10 @@ async def create_index_endpoint(
             ocr_cache_base_dir = os.path.join(project_root, "backend", "ocr_cache")
             if not os.path.isdir(ocr_cache_base_dir):
                 status_callback("ERROR: OCR cache directory not found.")
+                with indexing_jobs_lock:
+                    if job_id in indexing_jobs:
+                        indexing_jobs[job_id]["status"] = "failed"
+                broadcast_indexing_update(job_id)
                 return
 
             company_dirs = [
@@ -210,9 +323,55 @@ async def create_index_endpoint(
                 status_callback("INFO: No companies found in OCR cache. Job complete.")
                 return
 
+            # Count total documents
+            total_docs = 0
+            documents_map = {}
+            for company_name in company_dirs:
+                company_cache_dir = os.path.join(ocr_cache_base_dir, company_name)
+                if os.path.isdir(company_cache_dir):
+                    document_files = [
+                        f for f in os.listdir(company_cache_dir) if f.endswith(".json")
+                    ]
+                    for doc_file in document_files:
+                        doc_id = f"{company_name}_{doc_file}"
+                        documents_map[doc_id] = {
+                            "company": company_name,
+                            "file": doc_file.replace(".json", ""),
+                            "status": "queued",
+                        }
+                        total_docs += 1
+
+            # Update job with document info
+            with indexing_jobs_lock:
+                if job_id in indexing_jobs:
+                    indexing_jobs[job_id]["total_documents"] = total_docs
+                    indexing_jobs[job_id]["queued_documents"] = total_docs
+                    indexing_jobs[job_id]["documents"] = documents_map
+            broadcast_indexing_update(job_id)
+
             status_callback(
-                f"Found {len(company_dirs)} companies. Launching workers..."
+                f"Found {len(company_dirs)} companies with {total_docs} documents. Launching workers..."
             )
+
+            # Create callback that updates document status
+            def create_doc_callback(company_name):
+                def doc_status_callback(message):
+                    status_callback(message)
+
+                    # Update document status based on message
+                    if "SUCCESS: Found" in message or "INFO: Index" in message:
+                        # Extract filename from message if possible
+                        with indexing_jobs_lock:
+                            if job_id in indexing_jobs:
+                                indexing_jobs[job_id]["processed_documents"] += 1
+                                indexing_jobs[job_id]["queued_documents"] = max(
+                                    0,
+                                    indexing_jobs[job_id]["total_documents"]
+                                    - indexing_jobs[job_id]["processed_documents"],
+                                )
+                        broadcast_indexing_update(job_id)
+
+                return doc_status_callback
 
             threads = []
             for company_name in company_dirs:
@@ -223,7 +382,7 @@ async def create_index_endpoint(
                         index_name,
                         output_file_path,
                         file_lock,
-                        status_callback,
+                        create_doc_callback(company_name),
                     ),
                 )
                 threads.append(thread)
@@ -281,17 +440,31 @@ async def create_index_endpoint(
             error_message = f"FATAL_ERROR: The indexing job failed during orchestration. Error: {str(e)}"
             status_callback(error_message)
             print(error_message)  # Also print to server logs for debugging
+            with indexing_jobs_lock:
+                if job_id in indexing_jobs:
+                    indexing_jobs[job_id]["status"] = "failed"
+            broadcast_indexing_update(job_id)
 
-    # Add the job orchestration as a background task
-    background_tasks.add_task(job_orchestrator)
+    # Submit job to executor
+    indexing_executor.submit(job_orchestrator_wrapper)
 
     return JSONResponse(
         content={
             "success": True,
             "message": f"Indexing job launched for: {index_name}",
+            "job_id": job_id,
         },
         status_code=202,
     )
+
+
+# --- Get Indexing Queue Status Endpoint ---
+@app.get("/api/indexing-queue-status")
+async def indexing_queue_status(api_key_verified: bool = Depends(verify_api_key)):
+    """
+    Get current status of indexing queue and active jobs.
+    """
+    return JSONResponse(get_indexing_queue_status())
 
 
 # --- List Indexes Endpoint (Converted to FastAPI) ---

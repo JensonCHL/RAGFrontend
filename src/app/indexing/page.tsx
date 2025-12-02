@@ -25,6 +25,7 @@ type AccordionState = {
 };
 
 import DefaultLayout from "../default-layout";
+import IndexingMonitor from "@/components/IndexingMonitor";
 
 function IndexingPageContent() {
   const [indexName, setIndexName] = useState("");
@@ -35,6 +36,7 @@ function IndexingPageContent() {
   const [tableData, setTableData] = useState<ExtractedData[]>([]);
   const [groupedData, setGroupedData] = useState<GroupedData>({});
   const [openAccordions, setOpenAccordions] = useState<AccordionState>({});
+  const [indexingQueueStatus, setIndexingQueueStatus] = useState<any>(null);
 
   // Function to fetch data from the database
   const fetchData = async () => {
@@ -66,10 +68,34 @@ function IndexingPageContent() {
     }
   };
 
+  // Function to fetch indexing queue status
+  const fetchIndexingQueueStatus = async () => {
+    try {
+      const response = await fetch(
+        "http://localhost:5000/api/indexing-queue-status",
+        {
+          headers: {
+            Authorization: `Bearer ${process.env.NEXT_PUBLIC_API_BEARER_TOKEN}`,
+          },
+        }
+      );
+      const result = await response.json();
+      if (result.success) {
+        setIndexingQueueStatus(result);
+      }
+    } catch (err) {
+      console.error("Error fetching indexing queue status:", err);
+    }
+  };
+
   // Effect to listen for Server-Sent Events (SSE)
   useEffect(() => {
     // Fetch initial data on mount
     fetchData();
+    fetchIndexingQueueStatus();
+
+    // Auto-refresh indexing queue status every 2 seconds
+    const refreshInterval = setInterval(fetchIndexingQueueStatus, 2000);
 
     const eventSource = new EventSource("/api/proxy/events/processing-updates");
 
@@ -86,6 +112,9 @@ function IndexingPageContent() {
             // Refresh data after job is complete
             fetchData();
           }
+        } else if (data.type === "indexing_update") {
+          // Update indexing queue status from SSE
+          fetchIndexingQueueStatus();
         }
       } catch (error) {
         console.error("Failed to parse SSE message:", error);
@@ -101,6 +130,7 @@ function IndexingPageContent() {
     };
 
     return () => {
+      clearInterval(refreshInterval);
       eventSource.close();
     };
   }, []);
@@ -110,29 +140,32 @@ function IndexingPageContent() {
       setError("Index name cannot be empty.");
       return;
     }
-    // if (!apiKey.trim()) {
-    //   setError('API Key cannot be empty to start an indexing job.');
-    //   return;
-    // }
 
     setIsIndexing(true);
     setStatusMessages([]);
     setError(null);
 
     try {
-      const response = await fetch("/api/proxy/api/create-index", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          // 'Authorization': `Bearer ${apiKey}`,
-        },
-        body: JSON.stringify({ index_name: indexName }),
-      });
+      // Call n8n API directly (port 5000) with API key authentication
+      const response = await fetch(
+        `http://localhost:5000/api/create-index?index_name=${encodeURIComponent(
+          indexName
+        )}`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${process.env.NEXT_PUBLIC_API_BEARER_TOKEN}`,
+          },
+        }
+      );
 
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || "Failed to start indexing job.");
+        throw new Error(
+          data.detail || data.error || "Failed to start indexing job."
+        );
       }
 
       setStatusMessages([data.message]);
@@ -220,6 +253,9 @@ function IndexingPageContent() {
             </div>
             {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
           </div>
+
+          {/* Indexing Monitor - Show when there are active jobs */}
+          <IndexingMonitor queueStatus={indexingQueueStatus} />
 
           {statusMessages.length > 0 && (
             <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-4 transition-colors duration-300">
