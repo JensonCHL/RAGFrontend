@@ -854,10 +854,10 @@ async def update_own_username(user_id: str, request: UserUpdateRequest):
                 """
                 UPDATE users
                 SET username = %s, updated_at = NOW()
-                WHERE id = %s
+                WHERE id = %s OR email = %s
                 RETURNING username
                 """,
-                (request.username, user_id),
+                (request.username, user_id, user_id),
             )
             updated_user = cursor.fetchone()
             conn.commit()

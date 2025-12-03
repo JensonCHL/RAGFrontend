@@ -15,9 +15,9 @@ export async function PATCH(req: NextRequest) {
 
     const backendUrl = process.env.INTERNAL_API_URL || "http://127.0.0.1:5001";
     const response = await fetch(
-      `${backendUrl}/api/users/me?user_id=${userId}`,
+      `${backendUrl}/api/chat/users/me?user_id=${userId}`,
       {
-        method: "PATCH",
+        method: "PATCH",  
         headers: {
           "Content-Type": "application/json",
         },

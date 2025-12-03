@@ -335,6 +335,14 @@ export default function ChatNavbar({
                         return;
                       }
 
+                      // Check if user is an environment-defined admin (not in database)
+                      if (userId?.startsWith("admin-")) {
+                        alert(
+                          "Environment-defined admin users cannot change their username. Only database-registered users can update their usernames."
+                        );
+                        return;
+                      }
+
                       const response = await fetch(
                         `/api/proxy/chat/users/me?user_id=${userId}`,
                         {

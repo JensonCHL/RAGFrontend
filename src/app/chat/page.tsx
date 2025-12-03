@@ -61,12 +61,27 @@ function ChatPage() {
       if (response.ok) {
         const data = await response.json();
         // Update the specific conversation with full details (including messages)
+        // Preserve optimistic messages (messages with status 'sending') to prevent blinking
         setConversations((prev) =>
-          prev.map((conv) =>
-            conv.id === conversationId
-              ? { ...conv, messages: data.messages || [] }
-              : conv
-          )
+          prev.map((conv) => {
+            if (conv.id === conversationId) {
+              // Get optimistic messages (messages being sent/streamed)
+              const optimisticMessages = conv.messages.filter(
+                (msg) => msg.status === "sending"
+              );
+
+              // Merge backend messages with optimistic messages
+              // Backend messages come first, then optimistic messages
+              const backendMessages = data.messages || [];
+              const mergedMessages = [
+                ...backendMessages,
+                ...optimisticMessages,
+              ];
+
+              return { ...conv, messages: mergedMessages };
+            }
+            return conv;
+          })
         );
       }
     } catch (error) {
