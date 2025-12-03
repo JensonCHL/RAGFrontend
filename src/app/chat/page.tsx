@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { useSession } from "next-auth/react";
 import DefaultLayout from "../default-layout";
 import ChatInterface from "@/components/chat/ChatInterface";
 import Sidebar from "@/components/Sidebar";
@@ -8,7 +9,10 @@ import ChatNavbar from "@/components/ChatNavbar";
 import { Conversation, Message } from "@/types/chat";
 import { v4 as uuidv4 } from "uuid";
 
+import { getUserId } from "@/lib/userId";
+
 function ChatPage() {
+  const { data: session } = useSession();
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeConversationId, setActiveConversationId] = useState<
     string | null
@@ -20,35 +24,75 @@ function ChatPage() {
   );
   const abortControllerRef = useRef<AbortController | null>(null);
 
+  // Use session user ID if logged in, otherwise fallback to browser ID
+  const userId = session?.user?.email || session?.user?.name || getUserId();
+
   useEffect(() => {
     loadConversations();
-  }, []);
+  }, [userId]); // Reload when userId changes (e.g. login/logout)
 
-  const loadConversations = () => {
-    const stored = localStorage.getItem("chat_conversations");
-    if (stored) {
-      setConversations(JSON.parse(stored));
+  useEffect(() => {
+    if (activeConversationId) {
+      fetchConversationDetails(activeConversationId);
+    }
+  }, [activeConversationId]);
+
+  const loadConversations = async () => {
+    try {
+      const response = await fetch(
+        `/api/proxy/chat/conversations?user_id=${userId}`
+      );
+      if (response.ok) {
+        const data = await response.json();
+        setConversations(data.conversations || []);
+      }
+    } catch (error) {
+      console.error("Failed to load conversations:", error);
+      // Fallback to empty array on error
+      setConversations([]);
     }
   };
 
-  useEffect(() => {
-    if (conversations.length > 0) {
-      localStorage.setItem("chat_conversations", JSON.stringify(conversations));
+  const fetchConversationDetails = async (conversationId: string) => {
+    try {
+      const response = await fetch(
+        `/api/proxy/chat/conversations/${conversationId}?user_id=${userId}`
+      );
+      if (response.ok) {
+        const data = await response.json();
+        // Update the specific conversation with full details (including messages)
+        setConversations((prev) =>
+          prev.map((conv) =>
+            conv.id === conversationId
+              ? { ...conv, messages: data.messages || [] }
+              : conv
+          )
+        );
+      }
+    } catch (error) {
+      console.error("Failed to load conversation details:", error);
     }
-  }, [conversations]);
+  };
 
-  const createNewConversation = () => {
-    const newConversation: Conversation = {
-      id: uuidv4(),
-      title: "New Conversation",
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-      messages: [],
-      user_id: "current-user-id",
-    };
+  const createNewConversation = async () => {
+    try {
+      const response = await fetch("/api/proxy/chat/conversations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          user_id: userId,
+          title: "New Conversation",
+        }),
+      });
 
-    setConversations([newConversation, ...conversations]);
-    setActiveConversationId(newConversation.id);
+      if (response.ok) {
+        const newConversation = await response.json();
+        setConversations([newConversation, ...conversations]);
+        setActiveConversationId(newConversation.id);
+      }
+    } catch (error) {
+      console.error("Failed to create conversation:", error);
+    }
   };
 
   const sendMessage = async (content: string) => {
@@ -56,18 +100,35 @@ function ChatPage() {
 
     // Create new conversation if none exists
     if (!conversationId) {
-      const newConversation: Conversation = {
-        id: uuidv4(),
-        title: "New Conversation",
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        messages: [],
-        user_id: "current-user-id",
-      };
+      try {
+        const response = await fetch("/api/proxy/chat/conversations", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            user_id: userId,
+            title: "New Conversation",
+          }),
+        });
 
-      setConversations([newConversation, ...conversations]);
-      setActiveConversationId(newConversation.id);
-      conversationId = newConversation.id;
+        if (response.ok) {
+          const newConversation = await response.json();
+          setConversations([newConversation, ...conversations]);
+          setActiveConversationId(newConversation.id);
+          conversationId = newConversation.id;
+        } else {
+          console.error("Failed to create conversation");
+          return;
+        }
+      } catch (error) {
+        console.error("Error creating conversation:", error);
+        return;
+      }
+    }
+
+    // Ensure we have a valid conversationId before proceeding
+    if (!conversationId) {
+      console.error("Failed to get or create conversation");
+      return;
     }
 
     const userMessage: Message = {
@@ -80,6 +141,7 @@ function ChatPage() {
     };
 
     updateConversationMessages(conversationId, userMessage);
+    saveMessageToBackend(conversationId, userMessage);
 
     const botMessageId = uuidv4();
     const botMessage: Message = {
@@ -104,7 +166,7 @@ function ChatPage() {
         body: JSON.stringify({
           message: content,
           conversation_id: conversationId,
-          user_id: "current-user-id",
+          user_id: userId,
           timestamp: new Date().toISOString(),
           messages:
             conversations
@@ -151,6 +213,26 @@ function ChatPage() {
     }
   };
 
+  const saveMessageToBackend = async (
+    conversationId: string,
+    message: Message
+  ) => {
+    try {
+      await fetch(`/api/proxy/chat/conversations/${conversationId}/messages`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          user_id: userId,
+          role: message.role,
+          content: message.content,
+          sources: message.sources,
+        }),
+      });
+    } catch (error) {
+      console.error("Failed to save message:", error);
+    }
+  };
+
   const generateTitle = (content: string): string => {
     // Get first sentence (split by . ? ! or newline)
     const firstSentence = content.split(/[.?!]|\n/)[0].trim();
@@ -190,6 +272,15 @@ function ChatPage() {
 
             if (data === "[DONE]") {
               updateMessageContent(messageId, fullContent, "sent");
+              // Save assistant message to backend when done
+              saveMessageToBackend(conversationId, {
+                id: messageId,
+                conversation_id: conversationId,
+                role: "assistant",
+                content: fullContent,
+                timestamp: new Date().toISOString(),
+                status: "sent",
+              });
               return;
             }
 
@@ -210,6 +301,9 @@ function ChatPage() {
                   "sent",
                   parsed.sources
                 );
+                // If we get the full response in one go (not typical for stream but possible)
+                // We might want to save here, but usually [DONE] follows.
+                // Let's rely on [DONE] or the end of stream.
               }
             } catch (e) {
               fullContent += data;
@@ -220,6 +314,15 @@ function ChatPage() {
       }
 
       updateMessageContent(messageId, fullContent, "sent");
+      // Save assistant message if stream ends without [DONE] (fallback)
+      saveMessageToBackend(conversationId, {
+        id: messageId,
+        conversation_id: conversationId,
+        role: "assistant",
+        content: fullContent,
+        timestamp: new Date().toISOString(),
+        status: "sent",
+      });
     } catch (error) {
       throw error;
     }
@@ -266,18 +369,50 @@ function ChatPage() {
     );
   };
 
-  const updateConversationTitle = (conversationId: string, title: string) => {
-    setConversations((prev) =>
-      prev.map((conv) =>
-        conv.id === conversationId ? { ...conv, title } : conv
-      )
-    );
+  const updateConversationTitle = async (
+    conversationId: string,
+    title: string
+  ) => {
+    try {
+      const response = await fetch(
+        `/api/proxy/chat/conversations/${conversationId}`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            user_id: userId,
+            title,
+          }),
+        }
+      );
+
+      if (response.ok) {
+        setConversations((prev) =>
+          prev.map((conv) =>
+            conv.id === conversationId ? { ...conv, title } : conv
+          )
+        );
+      }
+    } catch (error) {
+      console.error("Failed to update conversation title:", error);
+    }
   };
 
-  const deleteConversation = (conversationId: string) => {
-    setConversations((prev) => prev.filter((c) => c.id !== conversationId));
-    if (activeConversationId === conversationId) {
-      setActiveConversationId(null);
+  const deleteConversation = async (conversationId: string) => {
+    try {
+      const response = await fetch(
+        `/api/proxy/chat/conversations/${conversationId}?user_id=${userId}`,
+        { method: "DELETE" }
+      );
+
+      if (response.ok) {
+        setConversations((prev) => prev.filter((c) => c.id !== conversationId));
+        if (activeConversationId === conversationId) {
+          setActiveConversationId(null);
+        }
+      }
+    } catch (error) {
+      console.error("Failed to delete conversation:", error);
     }
   };
 

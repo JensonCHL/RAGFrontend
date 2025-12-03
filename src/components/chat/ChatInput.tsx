@@ -42,12 +42,12 @@ export default function ChatInput({
   };
 
   return (
-    <div className="relative group rounded-3xl p-[1px] overflow-hidden bg-gray-900/50 transition-colors duration-300">
+    <div className="relative group rounded-3xl p-[1px] overflow-hidden bg-gray-100 dark:bg-gray-900/50 transition-colors duration-300">
       {/* Animated Border Beam - Visible on Focus */}
       <div className="absolute inset-[-100%] animate-[spin_5s_linear_infinite] bg-[conic-gradient(from_90deg_at_50%_50%,#0000_0%,#3b82f6_50%,#ef4444_70%,#0000_100%)] opacity-0 group-focus-within:opacity-100 transition-opacity duration-300" />
 
       {/* Inner Content */}
-      <div className="relative flex items-end gap-2 p-1 rounded-[calc(1.5rem-1px)] bg-gray-900/90 backdrop-blur-xl h-full w-full">
+      <div className="relative flex items-end gap-2 p-1 rounded-[calc(1.5rem-1px)] bg-white dark:bg-gray-900/90 backdrop-blur-xl h-full w-full">
         <textarea
           ref={textareaRef}
           value={input}

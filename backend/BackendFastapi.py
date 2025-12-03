@@ -41,6 +41,45 @@ app.add_middleware(
 
 # Register chat router
 app.include_router(chat_router)
+
+
+# Initialize database tables for chat history
+def initialize_chat_database():
+    """Initialize chat history tables on startup"""
+    try:
+        import psycopg2
+        from db_utils import get_db_connection
+
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        # Read and execute migration file
+        migration_files = ["001_chat_tables.sql", "002_users_table.sql"]
+
+        for migration_file in migration_files:
+            migration_path = os.path.join(
+                project_root, "backend", "migrations", migration_file
+            )
+            if os.path.exists(migration_path):
+                with open(migration_path, "r") as f:
+                    sql = f.read()
+                    cursor.execute(sql)
+                    conn.commit()
+                    print(f"✅ Migration {migration_file} executed successfully")
+            else:
+                print(f"⚠️  Migration file not found: {migration_path}")
+
+        cursor.close()
+        conn.close()
+    except Exception as e:
+        print(f"❌ Error initializing chat database: {e}")
+        # Don't fail startup if chat tables can't be created
+        pass
+
+
+# Run database initialization
+initialize_chat_database()
+
 # Global ThreadPoolExecutor for document processing jobs
 MAX_CONCURRENT_JOBS = 30
 job_executor = ThreadPoolExecutor(

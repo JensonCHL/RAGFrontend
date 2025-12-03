@@ -13,6 +13,8 @@ from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from dotenv import load_dotenv
+import psycopg2
+from psycopg2.extras import RealDictCursor
 
 # Load environment variables
 project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -51,6 +53,24 @@ class ChatRequest(BaseModel):
     timestamp: str
     messages: Optional[List[ChatMessage]] = []
     context: Optional[Dict[str, Any]] = {}
+
+
+class ConversationCreateRequest(BaseModel):
+    user_id: str
+    title: str
+
+
+class ConversationUpdateRequest(BaseModel):
+    user_id: str
+    title: str
+
+
+class MessageCreateRequest(BaseModel):
+    user_id: str
+    role: str
+    content: str
+    sources: Optional[List[Dict]] = None
+    metadata: Optional[Dict] = None
 
 
 # ============================================================================
@@ -305,90 +325,606 @@ async def health_check():
 
 
 # ============================================================================
-# Conversation Storage Endpoints (PostgreSQL - TODO)
+# Conversation Storage Endpoints (PostgreSQL)
 # ============================================================================
+
+# Import database utilities
+import psycopg2
+from psycopg2.extras import RealDictCursor
+
+
+def get_db_connection():
+    """Get PostgreSQL database connection"""
+    import os
+
+    return psycopg2.connect(
+        host=os.getenv("DB_HOST", "localhost"),
+        port=os.getenv("DB_PORT", "5432"),
+        database=os.getenv("DB_NAME", "rag_db"),
+        user=os.getenv("DB_USER", "postgres"),
+        password=os.getenv("DB_PASSWORD", "postgres"),
+    )
 
 
 @router.get("/conversations")
 async def get_conversations(user_id: str):
     """
     Get all conversations for a user.
-    TODO: Implement PostgreSQL query
     """
-    # For now, return empty list
-    # Later: SELECT * FROM chat_conversations WHERE user_id = ? ORDER BY updated_at DESC
-    return {"conversations": []}
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
+
+        cursor.execute(
+            """
+            SELECT id, user_id, title, created_at, updated_at
+            FROM chat_conversations
+            WHERE user_id = %s
+            ORDER BY updated_at DESC
+            """,
+            (user_id,),
+        )
+
+        conversations = cursor.fetchall()
+        cursor.close()
+        conn.close()
+
+        # Convert to list of dicts and format dates
+        result = []
+        for conv in conversations:
+            result.append(
+                {
+                    "id": str(conv["id"]),
+                    "user_id": conv["user_id"],
+                    "title": conv["title"],
+                    "created_at": conv["created_at"].isoformat()
+                    if conv["created_at"]
+                    else None,
+                    "updated_at": conv["updated_at"].isoformat()
+                    if conv["updated_at"]
+                    else None,
+                    "messages": [],  # Messages loaded separately
+                }
+            )
+
+        return {"conversations": result}
+    except Exception as e:
+        logger.error(f"Error fetching conversations: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.post("/conversations")
-async def create_conversation(user_id: str, title: str):
+async def create_conversation(request: ConversationCreateRequest):
     """
     Create new conversation.
-    TODO: Implement PostgreSQL insert
     """
-    # For now, generate UUID
-    import uuid
+    try:
+        import uuid
 
-    conversation_id = str(uuid.uuid4())
+        user_id = request.user_id
+        title = request.title
+        conversation_id = str(uuid.uuid4())
 
-    # Later: INSERT INTO chat_conversations (id, user_id, title, created_at, updated_at)
-    return {"conversation_id": conversation_id, "title": title}
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        cursor.execute(
+            """
+            INSERT INTO chat_conversations (id, user_id, title, created_at, updated_at)
+            VALUES (%s, %s, %s, NOW(), NOW())
+            RETURNING id, created_at, updated_at
+            """,
+            (conversation_id, user_id, title),
+        )
+
+        result = cursor.fetchone()
+        conn.commit()
+        cursor.close()
+        conn.close()
+
+        return {
+            "id": conversation_id,
+            "user_id": user_id,
+            "title": title,
+            "created_at": result[1].isoformat() if result[1] else None,
+            "updated_at": result[2].isoformat() if result[2] else None,
+            "messages": [],
+        }
+    except Exception as e:
+        logger.error(f"Error creating conversation: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.get("/conversations/{conversation_id}")
-async def get_conversation(conversation_id: str):
+async def get_conversation(conversation_id: str, user_id: str):
     """
     Get conversation with messages.
-    TODO: Implement PostgreSQL query
+    Includes user_id check for security.
     """
-    # Later:
-    # SELECT * FROM chat_conversations WHERE id = ?
-    # SELECT * FROM chat_messages WHERE conversation_id = ? ORDER BY created_at ASC
-    return {"conversation": {}, "messages": []}
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
+
+        # Get conversation (with user_id check)
+        cursor.execute(
+            """
+            SELECT id, user_id, title, created_at, updated_at
+            FROM chat_conversations
+            WHERE id = %s AND user_id = %s
+            """,
+            (conversation_id, user_id),
+        )
+
+        conversation = cursor.fetchone()
+        if not conversation:
+            cursor.close()
+            conn.close()
+            raise HTTPException(status_code=404, detail="Conversation not found")
+
+        # Get messages
+        cursor.execute(
+            """
+            SELECT id, conversation_id, role, content, sources, metadata, created_at
+            FROM chat_messages
+            WHERE conversation_id = %s
+            ORDER BY created_at ASC
+            """,
+            (conversation_id,),
+        )
+
+        messages = cursor.fetchall()
+        cursor.close()
+        conn.close()
+
+        # Format response
+        return {
+            "conversation": {
+                "id": str(conversation["id"]),
+                "user_id": conversation["user_id"],
+                "title": conversation["title"],
+                "created_at": conversation["created_at"].isoformat()
+                if conversation["created_at"]
+                else None,
+                "updated_at": conversation["updated_at"].isoformat()
+                if conversation["updated_at"]
+                else None,
+            },
+            "messages": [
+                {
+                    "id": str(msg["id"]),
+                    "conversation_id": str(msg["conversation_id"]),
+                    "role": msg["role"],
+                    "content": msg["content"],
+                    "sources": msg["sources"],
+                    "metadata": msg["metadata"],
+                    "timestamp": msg["created_at"].isoformat()
+                    if msg["created_at"]
+                    else None,
+                }
+                for msg in messages
+            ],
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error fetching conversation: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.delete("/conversations/{conversation_id}")
-async def delete_conversation(conversation_id: str):
+async def delete_conversation(conversation_id: str, user_id: str):
     """
-    Delete conversation.
-    TODO: Implement PostgreSQL delete
+    Delete conversation (with user_id check for security).
     """
-    # Later: DELETE FROM chat_conversations WHERE id = ? (CASCADE will delete messages)
-    return {"success": True}
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        # Delete only if user owns the conversation
+        cursor.execute(
+            """
+            DELETE FROM chat_conversations
+            WHERE id = %s AND user_id = %s
+            RETURNING id
+            """,
+            (conversation_id, user_id),
+        )
+
+        result = cursor.fetchone()
+        conn.commit()
+        cursor.close()
+        conn.close()
+
+        if not result:
+            raise HTTPException(
+                status_code=404, detail="Conversation not found or unauthorized"
+            )
+
+        return {"success": True, "id": conversation_id}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error deleting conversation: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.patch("/conversations/{conversation_id}")
-async def update_conversation(conversation_id: str, title: str):
+async def update_conversation(conversation_id: str, request: ConversationUpdateRequest):
     """
-    Update conversation title.
-    TODO: Implement PostgreSQL update
+    Update conversation title (with user_id check for security).
     """
-    # Later: UPDATE chat_conversations SET title = ?, updated_at = NOW() WHERE id = ?
-    return {"success": True, "title": title}
+    try:
+        user_id = request.user_id
+        title = request.title
+
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        cursor.execute(
+            """
+            UPDATE chat_conversations
+            SET title = %s, updated_at = NOW()
+            WHERE id = %s AND user_id = %s
+            RETURNING id
+            """,
+            (title, conversation_id, user_id),
+        )
+
+        result = cursor.fetchone()
+        conn.commit()
+        cursor.close()
+        conn.close()
+
+        if not result:
+            raise HTTPException(
+                status_code=404, detail="Conversation not found or unauthorized"
+            )
+
+        return {"success": True, "title": title}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error updating conversation: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 # ============================================================================
-# Message Storage Endpoints (PostgreSQL - TODO)
+# Message Storage Endpoints (PostgreSQL)
 # ============================================================================
 
 
 @router.post("/conversations/{conversation_id}/messages")
 async def save_message(
     conversation_id: str,
-    role: str,
-    content: str,
-    sources: Optional[List[Dict]] = None,
-    metadata: Optional[Dict] = None,
+    request: MessageCreateRequest,
 ):
     """
     Save a message to the conversation.
-    TODO: Implement PostgreSQL insert
+    Includes user_id check to ensure user owns the conversation.
     """
-    # Later: INSERT INTO chat_messages (conversation_id, role, content, sources, metadata, created_at)
-    import uuid
+    try:
+        import uuid
+        import json
 
-    message_id = str(uuid.uuid4())
-    return {"message_id": message_id}
+        user_id = request.user_id
+        role = request.role
+        content = request.content
+        sources = request.sources
+        metadata = request.metadata
+
+        message_id = str(uuid.uuid4())
+
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        # First verify user owns this conversation
+        cursor.execute(
+            "SELECT id FROM chat_conversations WHERE id = %s AND user_id = %s",
+            (conversation_id, user_id),
+        )
+        if not cursor.fetchone():
+            cursor.close()
+            conn.close()
+            raise HTTPException(
+                status_code=404, detail="Conversation not found or unauthorized"
+            )
+
+        # Insert message
+        cursor.execute(
+            """
+            INSERT INTO chat_messages (id, conversation_id, role, content, sources, metadata, created_at)
+            VALUES (%s, %s, %s, %s, %s, %s, NOW())
+            RETURNING id, created_at
+            """,
+            (
+                message_id,
+                conversation_id,
+                role,
+                content,
+                json.dumps(sources) if sources else None,
+                json.dumps(metadata) if metadata else None,
+            ),
+        )
+
+        result = cursor.fetchone()
+
+        # Update conversation updated_at
+        cursor.execute(
+            "UPDATE chat_conversations SET updated_at = NOW() WHERE id = %s",
+            (conversation_id,),
+        )
+
+        conn.commit()
+        cursor.close()
+        conn.close()
+
+        return {
+            "id": message_id,
+            "conversation_id": conversation_id,
+            "role": role,
+            "content": content,
+            "timestamp": result[1].isoformat() if result[1] else None,
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error saving message: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 logger.info("Chat backend initialized successfully")
+
+# ============================================================================
+# User Management Endpoints (RBAC)
+# ============================================================================
+
+from passlib.context import CryptContext
+
+# Password hashing context
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+
+class UserCreateRequest(BaseModel):
+    username: str
+    email: str
+    password: str
+
+
+class UserUpdateRequest(BaseModel):
+    username: str
+
+
+class AuthVerifyRequest(BaseModel):
+    username: str
+    password: str
+
+
+def verify_password(plain_password, hashed_password):
+    return pwd_context.verify(plain_password, hashed_password)
+
+
+def get_password_hash(password):
+    return pwd_context.hash(password)
+
+
+@router.post("/admin/users")
+async def create_user(request: UserCreateRequest):
+    """
+    Create a new user (Admin only).
+    """
+    try:
+        import uuid
+
+        user_id = str(uuid.uuid4())
+        hashed_password = get_password_hash(request.password)
+
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        try:
+            cursor.execute(
+                """
+                INSERT INTO users (id, username, email, password_hash, role, created_at, updated_at)
+                VALUES (%s, %s, %s, %s, 'user', NOW(), NOW())
+                RETURNING id, username, email, role, created_at
+                """,
+                (user_id, request.username, request.email, hashed_password),
+            )
+            new_user = cursor.fetchone()
+            conn.commit()
+
+            return {
+                "id": str(new_user[0]),
+                "username": new_user[1],
+                "email": new_user[2],
+                "role": new_user[3],
+                "created_at": new_user[4].isoformat() if new_user[4] else None,
+            }
+        except psycopg2.IntegrityError:
+            conn.rollback()
+            raise HTTPException(
+                status_code=400, detail="Username or email already exists"
+            )
+        finally:
+            cursor.close()
+            conn.close()
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error creating user: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/admin/users")
+async def list_users():
+    """
+    List all users (Admin only).
+    """
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
+
+        cursor.execute(
+            """
+            SELECT id, username, email, role, created_at, updated_at
+            FROM users
+            ORDER BY created_at DESC
+            """
+        )
+        users = cursor.fetchall()
+        cursor.close()
+        conn.close()
+
+        result = []
+        for user in users:
+            result.append(
+                {
+                    "id": str(user["id"]),
+                    "username": user["username"],
+                    "email": user["email"],
+                    "role": user["role"],
+                    "created_at": user["created_at"].isoformat()
+                    if user["created_at"]
+                    else None,
+                    "updated_at": user["updated_at"].isoformat()
+                    if user["updated_at"]
+                    else None,
+                }
+            )
+
+        return {"users": result}
+    except Exception as e:
+        logger.error(f"Error listing users: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/auth/verify")
+async def verify_user(request: AuthVerifyRequest):
+    """
+    Verify user credentials (for NextAuth).
+    """
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
+
+        # Allow login by username OR email
+        cursor.execute(
+            """
+            SELECT id, username, email, password_hash, role
+            FROM users
+            WHERE username = %s OR email = %s
+            """,
+            (request.username, request.username),
+        )
+        user = cursor.fetchone()
+        cursor.close()
+        conn.close()
+
+        if not user:
+            raise HTTPException(status_code=401, detail="Invalid credentials")
+
+        if not verify_password(request.password, user["password_hash"]):
+            raise HTTPException(status_code=401, detail="Invalid credentials")
+
+        return {
+            "id": str(user["id"]),
+            "username": user["username"],
+            "email": user["email"],
+            "role": user["role"],
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error verifying user: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.patch("/users/me")
+async def update_own_username(user_id: str, request: UserUpdateRequest):
+    """
+    Update own username.
+    """
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        try:
+            cursor.execute(
+                """
+                UPDATE users
+                SET username = %s, updated_at = NOW()
+                WHERE id = %s
+                RETURNING username
+                """,
+                (request.username, user_id),
+            )
+            updated_user = cursor.fetchone()
+            conn.commit()
+
+            if not updated_user:
+                raise HTTPException(status_code=404, detail="User not found")
+
+            return {"success": True, "username": updated_user[0]}
+        except psycopg2.IntegrityError:
+            conn.rollback()
+            raise HTTPException(status_code=400, detail="Username already taken")
+        finally:
+            cursor.close()
+            conn.close()
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error updating username: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.delete("/admin/users/{user_id}")
+async def delete_user(user_id: str):
+    """
+    Delete a user (Admin only).
+    """
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        try:
+            # Check if user exists
+            cursor.execute("SELECT id FROM users WHERE id = %s", (user_id,))
+            if not cursor.fetchone():
+                raise HTTPException(status_code=404, detail="User not found")
+
+            # Delete user and all associated chat data
+            # Since there's no foreign key constraint between users and chat_conversations,
+            # we need to manually delete in the correct order to avoid orphaned data
+
+            # Step 1: Delete all messages in conversations belonging to this user
+            # (This will cascade automatically due to ON DELETE CASCADE on conversation_id)
+            cursor.execute(
+                "DELETE FROM chat_messages WHERE conversation_id IN (SELECT id FROM chat_conversations WHERE user_id = %s)",
+                (user_id,),
+            )
+
+            # Step 2: Delete all conversations belonging to this user
+            cursor.execute(
+                "DELETE FROM chat_conversations WHERE user_id = %s", (user_id,)
+            )
+
+            # Step 3: Delete the user record
+            cursor.execute("DELETE FROM users WHERE id = %s", (user_id,))
+            conn.commit()
+
+            return {"success": True, "message": "User deleted successfully"}
+        except Exception as e:
+            conn.rollback()
+            raise e
+        finally:
+            cursor.close()
+            conn.close()
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error deleting user: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { useSession } from "next-auth/react";
 import ChatMessage from "./ChatMessage";
 import ChatInput from "./ChatInput";
 import { Conversation } from "@/types/chat";
@@ -24,7 +25,9 @@ export default function ChatInterface({
   onEditMessage,
   onResendMessage,
 }: ChatInterfaceProps) {
+  const { data: session } = useSession();
   const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const userName = session?.user?.name || "User";
 
   useEffect(() => {
     if (messagesContainerRef.current) {
@@ -40,7 +43,7 @@ export default function ChatInterface({
           {/* Greeting */}
           <div className="text-center space-y-2">
             <h1 className="text-5xl font-medium bg-gradient-to-r from-[#3F81F7] to-[#2563eb] bg-clip-text text-transparent">
-              Hello, User
+              Hello, {userName}
             </h1>
             <p className="text-xl text-gray-500 dark:text-gray-400">
               How can I help you today?
@@ -72,7 +75,7 @@ export default function ChatInterface({
             {/* Greeting */}
             <div className="text-center space-y-2">
               <h1 className="text-5xl font-medium animate-cloudeka-gradient">
-                Hello, User
+                Hello, {userName}
               </h1>
               <p className="text-xl text-gray-500 dark:text-gray-400">
                 How can I help you today?
