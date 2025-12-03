@@ -3,10 +3,10 @@
 import { useState, useRef } from "react";
 
 interface FolderUploadProps {
-  onFolderUpload: (folderName: string, files: File[]) => void;
+  onFilesQueued: (folderName: string, files: File[]) => void;
 }
 
-export default function FolderUpload({ onFolderUpload }: FolderUploadProps) {
+export default function FolderUpload({ onFilesQueued }: FolderUploadProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -151,13 +151,13 @@ export default function FolderUpload({ onFolderUpload }: FolderUploadProps) {
         return;
       }
 
-      // if (allPdfFiles.length > 20) {
-      //   setError(`Too many PDF files (${allPdfFiles.length}) found. Please ensure folder contains maximum of 20 PDF files.`);
-      //   return;
-      // }
+      // No file limit - sequential upload handles unlimited files
+      console.log(
+        `Queueing ${allPdfFiles.length} files from folder "${folderEntry.name}"`
+      );
 
       // Use directory name as company name (convert to uppercase)
-      onFolderUpload(folderEntry.name.toUpperCase(), allPdfFiles);
+      onFilesQueued(folderEntry.name.toUpperCase(), allPdfFiles);
     } catch (err) {
       console.error("Error processing folder:", folderEntry.name, err);
       // Log error but continue processing other folders
@@ -203,19 +203,13 @@ export default function FolderUpload({ onFolderUpload }: FolderUploadProps) {
         }
       });
 
-      // Validate each folder
-      for (const [folderName, folderFiles] of Object.entries(folders)) {
-        if (folderFiles.length > 20) {
-          setError(
-            `Too many files (${folderFiles.length}) in folder "${folderName}". Please select a maximum of 20 files per folder.`
-          );
-          return;
-        }
-      }
-
+      // No file limit - sequential upload handles unlimited files
       // Process each folder
       for (const [folderName, folderFiles] of Object.entries(folders)) {
-        onFolderUpload(folderName.toUpperCase(), folderFiles);
+        console.log(
+          `Queueing ${folderFiles.length} files from folder "${folderName}"`
+        );
+        onFilesQueued(folderName.toUpperCase(), folderFiles);
       }
 
       e.target.value = ""; // Reset input
@@ -285,7 +279,7 @@ export default function FolderUpload({ onFolderUpload }: FolderUploadProps) {
           <ul className="list-disc list-inside mt-1 space-y-1">
             <li>Folders with PDF files</li>
             <li>Nested subfolders are allowed (PDFs will be flattened)</li>
-            <li>Maximum 20 PDF files per folder</li>
+            <li>Unlimited files per folder ✨</li>
             <li>Folder names become company names</li>
           </ul>
         </div>

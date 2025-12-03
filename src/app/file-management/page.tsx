@@ -6,6 +6,7 @@ import FolderUpload from "@/components/FolderUpload";
 import CompanyCreationForm from "@/components/CompanyCreationForm";
 import ProcessingProgressDisplay from "@/components/ProcessingProgressDisplay";
 import UploadProgressBar from "@/components/UploadProgressBar";
+import UploadQueue, { FileUploadItem } from "@/components/UploadQueue";
 import SearchBar from "@/components/SearchBar";
 import ErrorMessage from "@/components/ErrorMessage";
 import NoCompaniesFoundMessage from "@/components/NoCompaniesFoundMessage";
@@ -41,6 +42,10 @@ function FileManagementPage() {
     Record<string, ProcessingState>
   >({});
   const [selectedCompanies, setSelectedCompanies] = useState<string[]>([]);
+
+  // Upload queue state
+  const [uploadQueue, setUploadQueue] = useState<FileUploadItem[]>([]);
+  const [isProcessingQueue, setIsProcessingQueue] = useState(false);
 
   // Fetch companies from API
   useEffect(() => {
@@ -507,93 +512,134 @@ function FileManagementPage() {
     }
   };
 
-  const handleFolderUpload = async (folderName: string, files: File[]) => {
-    try {
-      // Validate folder structure - reject nested folders
-      const hasNestedFolders = files.some((file) => {
-        // Check if file path contains subdirectories
-        return (
-          file.webkitRelativePath &&
-          file.webkitRelativePath.split("/").length > 2
-        );
-      });
+  // Queue files for sequential upload
+  const handleFilesQueued = (folderName: string, files: File[]) => {
+    const upperCaseFolderName = folderName.toUpperCase();
 
-      if (hasNestedFolders) {
-        setError(
-          "Nested folders are not allowed. Please upload folders with files directly inside them."
-        );
-        return;
-      }
+    // Create upload items for each file
+    const newItems: FileUploadItem[] = files.map((file) => ({
+      id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      file,
+      companyName: upperCaseFolderName,
+      status: "queued",
+      progress: 0,
+    }));
 
-      // Convert company name to uppercase
-      const upperCaseFolderName = folderName.toUpperCase();
+    // Add to queue
+    setUploadQueue((prev) => [...prev, ...newItems]);
 
-      // Check for duplicate company name
-      const existingCompany = companies.find(
-        (company) => company.name === upperCaseFolderName
+    // Start processing if not already processing
+    if (!isProcessingQueue) {
+      processUploadQueue([...uploadQueue, ...newItems]);
+    }
+  };
+
+  // Process upload queue sequentially
+  const processUploadQueue = async (queue: FileUploadItem[]) => {
+    if (isProcessingQueue) return;
+
+    setIsProcessingQueue(true);
+
+    for (const item of queue) {
+      if (item.status !== "queued") continue;
+
+      // Update status to uploading
+      setUploadQueue((prev) =>
+        prev.map((i) =>
+          i.id === item.id ? { ...i, status: "uploading", progress: 0 } : i
+        )
       );
-      if (existingCompany) {
-        // Automatically add files to existing company without confirmation
-        console.log(`Adding files to existing company: ${upperCaseFolderName}`);
+
+      try {
+        await uploadSingleFile(item, (progress) => {
+          setUploadQueue((prev) =>
+            prev.map((i) => (i.id === item.id ? { ...i, progress } : i))
+          );
+        });
+
+        // Mark as completed
+        setUploadQueue((prev) =>
+          prev.map((i) =>
+            i.id === item.id ? { ...i, status: "completed", progress: 100 } : i
+          )
+        );
+      } catch (error: any) {
+        // Mark as failed
+        setUploadQueue((prev) =>
+          prev.map((i) =>
+            i.id === item.id
+              ? { ...i, status: "failed", error: error.message }
+              : i
+          )
+        );
       }
+    }
 
+    setIsProcessingQueue(false);
+
+    // Refresh company list after all uploads
+    await fetchCompanies();
+    await fetchQdrantData();
+  };
+
+  // Upload a single file with progress tracking
+  const uploadSingleFile = async (
+    item: FileUploadItem,
+    onProgress: (progress: number) => void
+  ): Promise<void> => {
+    return new Promise((resolve, reject) => {
       const formData = new FormData();
-      files.forEach((file) => formData.append("files", file));
-      formData.append("companyName", upperCaseFolderName);
-
-      // Show upload progress
-      setIsUploading(true);
-      setUploadProgress(0);
+      formData.append("file", item.file);
+      formData.append("companyName", item.companyName);
 
       const xhr = new XMLHttpRequest();
 
-      // Track upload progress
       xhr.upload.addEventListener("progress", (event) => {
         if (event.lengthComputable) {
-          const percentComplete = Math.round(
-            (event.loaded / event.total) * 100
-          );
-          setUploadProgress(percentComplete);
+          const progress = Math.round((event.loaded / event.total) * 100);
+          onProgress(progress);
         }
       });
 
-      // Handle response
-      const responsePromise = new Promise((resolve, reject) => {
-        xhr.onload = function () {
-          if (xhr.status >= 200 && xhr.status < 300) {
-            resolve(xhr.response);
-          } else {
-            reject(new Error(`HTTP ${xhr.status}: ${xhr.statusText}`));
-          }
-        };
+      xhr.onload = () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          resolve();
+        } else {
+          reject(new Error(`Upload failed: ${xhr.statusText}`));
+        }
+      };
 
-        xhr.onerror = function () {
-          reject(new Error("Network error"));
-        };
-      });
+      xhr.onerror = () => reject(new Error("Network error"));
 
-      // Send request
-      xhr.open("POST", "/api/upload");
+      xhr.open("POST", "/api/upload-single");
       xhr.send(formData);
+    });
+  };
 
-      // Wait for response
-      await responsePromise;
+  // Handle cancel upload
+  const handleCancelUpload = (id: string) => {
+    setUploadQueue((prev) => prev.filter((item) => item.id !== id));
+  };
 
-      // Hide progress bar
-      setUploadProgress(null);
-      setIsUploading(false);
+  // Handle retry upload
+  const handleRetryUpload = (id: string) => {
+    setUploadQueue((prev) =>
+      prev.map((item) =>
+        item.id === id ? { ...item, status: "queued", error: undefined } : item
+      )
+    );
 
-      // Refresh the company list
-      await fetchCompanies();
-      // Refresh Qdrant data
-      await fetchQdrantData();
-      setError(null);
-    } catch (error) {
-      console.error("Upload error:", error);
-      setError("Upload failed. Please try again.");
-      setUploadProgress(null);
-      setIsUploading(false);
+    // Restart queue processing
+    if (!isProcessingQueue) {
+      processUploadQueue(uploadQueue);
     }
+  };
+
+  // Clear completed uploads
+  const handleClearCompleted = () => {
+    setUploadQueue((prev) =>
+      prev.filter((item) => item.status !== "completed")
+    );
   };
 
   const handleCreateCompany = async (companyName: string) => {
@@ -1058,13 +1104,15 @@ function FileManagementPage() {
 
         {/* Upload Section - Moved to Top */}
         <div className="mb-8">
-          <FolderUpload onFolderUpload={handleFolderUpload} />
+          <FolderUpload onFilesQueued={handleFilesQueued} />
         </div>
 
-        {/* Upload Progress Bar */}
-        <UploadProgressBar
-          isUploading={isUploading}
-          progress={uploadProgress}
+        {/* Upload Queue - Shows individual file progress */}
+        <UploadQueue
+          items={uploadQueue}
+          onCancel={handleCancelUpload}
+          onRetry={handleRetryUpload}
+          onClearCompleted={handleClearCompleted}
         />
 
         {/* Processing Monitor */}
