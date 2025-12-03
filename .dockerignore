@@ -1,0 +1,46 @@
+# Node modules
+node_modules
+npm-debug.log
+
+# Next.js build output
+.next
+out
+
+# Python cache
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+*.egg
+*.egg-info
+dist
+build
+
+# Environment files (will be passed via env_file in docker-compose)
+.env
+.env.local
+
+# Git
+.git
+.gitignore
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Data directories (will be mounted as volumes)
+knowledge
+backend/ocr_cache
+processing_states.json
+document_processing_log.json

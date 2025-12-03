@@ -1,0 +1,113 @@
+version: "3.8"
+
+services:
+  postgres:
+    image: postgres:13
+    container_name: rag-postgres
+    restart: always
+    environment:
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "${DB_PORT}:5432"
+    networks:
+      - rag-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: .
+      dockerfile: docker/backend.Dockerfile
+    container_name: rag-backend
+    restart: always
+    ports:
+      - "5001:5001"
+    env_file:
+      - .env
+    environment:
+      - PYTHONUNBUFFERED=1
+      - DB_HOST=postgres
+    volumes:
+      # Mount source code for hot-reload during development
+      - ./backend:/app
+      # Mount data directories for persistence
+      - ./knowledge:/app/knowledge
+      - ./backend/ocr_cache:/app/ocr_cache
+      - ./processing_states.json:/app/processing_states.json
+      - ./document_processing_log.json:/app/document_processing_log.json
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - rag-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  api-gateway:
+    build:
+      context: .
+      dockerfile: docker/n8n_API.Dockerfile
+    container_name: rag-api-gateway
+    restart: always
+    ports:
+      - "5000:5000"
+    env_file:
+      - .env
+    environment:
+      - PYTHONUNBUFFERED=1
+      - INTERNAL_API_BASE_URL=http://backend:5001
+    volumes:
+      # Mount source code for hot-reload during development
+      - ./backend:/app
+    depends_on:
+      - backend
+    networks:
+      - rag-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  frontend:
+    build:
+      context: .
+      dockerfile: docker/frontend.Dockerfile
+    container_name: rag-frontend
+    restart: always
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:5001
+      - INTERNAL_API_URL=http://backend:5001
+    volumes:
+      # Mount source code for hot-reload during development
+      - .:/app
+      # Use anonymous volume for node_modules to prevent host override
+      - /app/node_modules
+      - /app/.next
+    depends_on:
+      - api-gateway
+      - backend
+    networks:
+      - rag-network
+
+networks:
+  rag-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+    driver: local

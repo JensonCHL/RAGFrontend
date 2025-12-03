@@ -1,16 +1,20 @@
-# Use a Node.js runtime as the base image
+# Frontend Dockerfile for Next.js
 FROM node:20-alpine
 
-# Set the working directory in the container
+# Set working directory
 WORKDIR /app
-# Copy package.json and package-lock.json
+
+# Copy package files
 COPY package*.json ./
 
 # Install dependencies
 RUN npm install
 
-# Expose the port the app runs on
+# Expose port
 EXPOSE 3000
 
-# Command to start the development server
+# Set environment variable to allow Next.js to bind to 0.0.0.0
+ENV HOSTNAME=0.0.0.0
+
+# Command to run the frontend in development mode
 CMD ["npm", "run", "dev"]

@@ -1,30 +1,26 @@
-# Use an official Python runtime as a parent image
-FROM python:3.10-slim
+# Backend Dockerfile for FastAPI backend
+FROM python:3.11-slim
 
-# Set the working directory in the container
+# Set working directory
 WORKDIR /app
 
-# --- Add Debian repositories and install debug tools ---
-RUN echo "deb http://deb.debian.org/debian bookworm main contrib non-free non-free-firmware" > /etc/apt/sources.list && \
-    echo "deb http://security.debian.org/debian-security bookworm-security main contrib non-free non-free-firmware" >> /etc/apt/sources.list && \
-    echo "deb http://deb.debian.org/debian bookworm-updates main contrib non-free non-free-firmware" >> /etc/apt/sources.list && \
-    apt-get update && \
-    apt-get install -y curl procps && \
-    rm -rf /var/lib/apt/lists/*
+# Install system dependencies for OCR and PDF processing
+RUN apt-get update && apt-get install -y \
+    tesseract-ocr \
+    tesseract-ocr-eng \
+    poppler-utils \
+    libpoppler-cpp-dev \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
 
-# Copy the backend requirements file and install dependencies
-COPY ./backend/requirements.txt /app/
+# Copy requirements file
+COPY backend/requirements.txt .
+
+# Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy the rest of the backend source code - This is now handled by a volume mount in docker-compose for development
-# COPY ./backend /app/
-
-# The .env file should not be copied into the image.
-# It will be provided at runtime via docker-compose.
-
-# Expose the port the app runs on
+# Expose port
 EXPOSE 5001
 
-# Define the command to run the Flask development server
-# The --host=0.0.0.0 flag makes it accessible from outside the container
-CMD ["flask", "run", "--host=0.0.0.0", "--port=5001"]
+# Command to run the backend with uvicorn
+CMD ["uvicorn", "BackendFastapi:app", "--host", "0.0.0.0", "--port", "5001", "--reload", "--log-level", "debug"]

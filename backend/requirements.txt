@@ -1,29 +1,69 @@
+# ============================================================================
 # Python Dependencies for RAG Backend
-# Generated from BackendFastapi.py and n8n_API_fastapi.py
+# Complete requirements for all services including BackendFastapi, n8n_API, and chatBackend
+# ============================================================================
 
-# Web Framework
+# --- Web Framework ---
 fastapi
-uvicorn
+uvicorn[standard]
+python-multipart
 
-# Database
+# --- ASGI Server & HTTP ---
+aiohttp
+httpx
+requests
+
+# --- Database ---
 psycopg2-binary
+# Alternative: psycopg2 (requires PostgreSQL dev libraries)
 
-# Vector Database
+# --- Vector Database ---
 qdrant-client
 
-# Environment Variables
+# --- Environment Variables ---
 python-dotenv
 
-# AI/ML Libraries
+# --- AI/ML Libraries ---
 openai
 langchain-openai
 
-# PDF Processing
-PyMuPDF
+# --- PDF Processing ---
+PyMuPDF  # Also known as fitz
 Pillow
 
-# HTTP Requests
-requests
-
-# Data Validation
+# --- Data Validation & Serialization ---
 pydantic
+pydantic-settings
+
+# --- Password Hashing (for user authentication) ---
+passlib[bcrypt]
+bcrypt
+
+# --- Utilities ---
+python-dateutil
+
+# ============================================================================
+# Optional but Recommended
+# ============================================================================
+
+# --- Logging & Monitoring ---
+# python-json-logger
+
+# --- Testing (Development) ---
+# pytest
+# pytest-asyncio
+# httpx  # Already included above
+
+# ============================================================================
+# System Requirements (Install via apt/yum)
+# ============================================================================
+# These cannot be installed via pip and must be installed on the system:
+#
+# Ubuntu/Debian:
+#   sudo apt-get update
+#   sudo apt-get install -y tesseract-ocr tesseract-ocr-eng poppler-utils libpoppler-cpp-dev
+#
+# CentOS/RHEL:
+#   sudo yum install -y tesseract poppler-utils poppler-cpp-devel
+#
+# ============================================================================
