@@ -385,3 +385,23 @@ textarea.bg-gray-700::-webkit-scrollbar-thumb:hover {
 .loading-dot:nth-child(3) {
   animation-delay: 0.4s;
 }
+
+/* Page loading bar animation - brand colors (blue to red) */
+@keyframes loading-bar {
+  0% {
+    width: 0%;
+    background-position: 0% 50%;
+  }
+  50% {
+    width: 70%;
+    background-position: 100% 50%;
+  }
+  100% {
+    width: 100%;
+    background-position: 0% 50%;
+  }
+}
+
+.animate-loading-bar {
+  animation: loading-bar 1.5s ease-in-out infinite;
+}

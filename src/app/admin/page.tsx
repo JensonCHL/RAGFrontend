@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import DefaultLayout from "../default-layout";
+import PageLoader from "@/components/PageLoader";
 
 interface User {
   id: string;
@@ -111,10 +112,8 @@ export default function AdminPage() {
 
   if (status === "loading" || isLoading) {
     return (
-      <div className="flex h-screen items-center justify-center bg-gray-100 dark:bg-gray-900">
-        <div className="text-xl font-semibold text-gray-600 dark:text-gray-300">
-          Loading Admin Dashboard...
-        </div>
+      <div className="flex h-screen items-center justify-center bg-gray-50 dark:bg-gray-900">
+        <PageLoader text="Loading Admin Dashboard..." />
       </div>
     );
   }

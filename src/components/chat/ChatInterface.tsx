@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react";
 import { useSession } from "next-auth/react";
 import ChatMessage from "./ChatMessage";
 import ChatInput from "./ChatInput";
+import PageLoader from "@/components/PageLoader";
 import { Conversation } from "@/types/chat";
 
 interface ChatInterfaceProps {
@@ -25,7 +26,7 @@ export default function ChatInterface({
   onEditMessage,
   onResendMessage,
 }: ChatInterfaceProps) {
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const userName = session?.user?.name || "User";
 
@@ -36,13 +37,22 @@ export default function ChatInterface({
     }
   }, [conversation?.messages]);
 
+  // Show loading while session is being fetched
+  if (status === "loading") {
+    return (
+      <div className="flex-1 flex items-center justify-center">
+        <PageLoader text="Loading..." />
+      </div>
+    );
+  }
+
   if (!conversation) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center px-4 pb-32">
         <div className="w-full max-w-4xl space-y-12">
           {/* Greeting */}
           <div className="text-center space-y-2">
-            <h1 className="text-5xl font-medium bg-gradient-to-r from-[#3F81F7] to-[#2563eb] bg-clip-text text-transparent">
+            <h1 className="text-5xl font-medium animate-cloudeka-gradient">
               Hello, {userName}
             </h1>
             <p className="text-xl text-gray-500 dark:text-gray-400">
