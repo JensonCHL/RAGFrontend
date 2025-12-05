@@ -158,9 +158,13 @@ export default function ChatMessage({
             </div>
           </div>
 
-          {/* Message Content */}
+          {/* Message Content - Gemini-style streaming */}
           <div className="flex-1 max-w-[85%]">
-            <div className="prose prose-sm max-w-none prose-invert">
+            <div
+              className={`prose prose-sm max-w-none prose-invert ${
+                isStreaming ? "prose-streaming" : ""
+              }`}
+            >
               <ReactMarkdown
                 remarkPlugins={[remarkGfm, remarkMath]}
                 rehypePlugins={[rehypeKatex]}
@@ -218,13 +222,16 @@ export default function ChatMessage({
                       </code>
                     );
                   },
-                  p: ({ node, ...props }) => (
+                  p: ({ node, children, ...props }) => (
                     <p
                       className={`text-gray-800 dark:text-gray-200 mb-3 text-[15px] leading-relaxed ${
-                        isStreaming ? "animate-fade-in" : ""
+                        isStreaming ? "streaming-text" : ""
                       }`}
                       {...props}
-                    />
+                    >
+                      {children}
+                      {isStreaming && <span className="streaming-cursor" />}
+                    </p>
                   ),
                   a: ({ node, ...props }) => (
                     <a
@@ -235,7 +242,7 @@ export default function ChatMessage({
                   ul: ({ node, ...props }) => (
                     <ul
                       className={`list-disc pl-5 text-gray-800 dark:text-gray-200 space-y-1 ${
-                        isStreaming ? "animate-fade-in" : ""
+                        isStreaming ? "streaming-text" : ""
                       }`}
                       {...props}
                     />
@@ -243,15 +250,23 @@ export default function ChatMessage({
                   ol: ({ node, ...props }) => (
                     <ol
                       className={`list-decimal pl-5 text-gray-800 dark:text-gray-200 space-y-1 ${
-                        isStreaming ? "animate-fade-in" : ""
+                        isStreaming ? "streaming-text" : ""
                       }`}
                       {...props}
                     />
                   ),
+                  li: ({ node, children, ...props }) => (
+                    <li
+                      className={isStreaming ? "streaming-text" : ""}
+                      {...props}
+                    >
+                      {children}
+                    </li>
+                  ),
                   h1: ({ node, ...props }) => (
                     <h1
                       className={`text-2xl font-semibold text-gray-900 dark:text-gray-100 mt-4 mb-2 ${
-                        isStreaming ? "animate-fade-in" : ""
+                        isStreaming ? "streaming-text" : ""
                       }`}
                       {...props}
                     />
@@ -259,7 +274,7 @@ export default function ChatMessage({
                   h2: ({ node, ...props }) => (
                     <h2
                       className={`text-xl font-semibold text-gray-900 dark:text-gray-100 mt-3 mb-2 ${
-                        isStreaming ? "animate-fade-in" : ""
+                        isStreaming ? "streaming-text" : ""
                       }`}
                       {...props}
                     />
@@ -267,7 +282,7 @@ export default function ChatMessage({
                   h3: ({ node, ...props }) => (
                     <h3
                       className={`text-lg font-semibold text-gray-900 dark:text-gray-100 mt-3 mb-2 ${
-                        isStreaming ? "animate-fade-in" : ""
+                        isStreaming ? "streaming-text" : ""
                       }`}
                       {...props}
                     />

@@ -189,7 +189,7 @@ async def stream_n8n_response(chat_request: ChatRequest):
         "messages": history,
         "currentMessage": chat_request.message,
         "chat_id": chat_request.conversation_id,
-        "sessionId": chat_request.user_id,  # n8n expects sessionId
+        "sessionId": chat_request.conversation_id,  # Use conversation_id for unique session per chat
         INPUT_FIELD: chat_request.message,
     }
 
